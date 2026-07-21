@@ -1,6 +1,6 @@
 import re
 from typing import List
-from models.schedule import CourseItem
+from api.models.schedule import CourseItem
 
 class ParserService:
     # Extracts ID, Name, Section, Room, Days, Start Time, and End Time

@@ -1,6 +1,12 @@
+import sys
+from pathlib import Path
+
+# Force Python to include the current folder (back-end) in the search path
+sys.path.append(str(Path(__file__).resolve().parent))
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routes.schedule import router as schedule_router
+from api.routes.schedule import router as schedule_router
 
 app = FastAPI(title="Simple Schedule Parser API")
 

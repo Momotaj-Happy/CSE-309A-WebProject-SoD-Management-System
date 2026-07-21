@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
-from models.schedule import ScheduleRequest, ScheduleResponse
-from services.parser_service import ParserService
+from api.models.schedule import ScheduleRequest, ScheduleResponse
+from api.services.parser_service import ParserService
 
 router = APIRouter(prefix="/api/schedule", tags=["Schedule"])
 
