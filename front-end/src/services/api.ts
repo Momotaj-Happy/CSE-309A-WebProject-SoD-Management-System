@@ -228,3 +228,41 @@ class ApiClient {
 }
 
 export const api = new ApiClient();
+
+// Schedule Parser API exports
+export interface Course {
+  id: string;
+  name: string;
+  section: string;
+  room: string;
+  days: string;
+  time: string;
+}
+
+export interface ScheduleResponse {
+  success: boolean;
+  courses: Course[];
+}
+
+const SCHEDULE_API_URL = 'http://localhost:8000/api/schedule';
+
+export async function parseScheduleApi(rawText: string): Promise<ScheduleResponse> {
+  const sanitizedText = rawText
+    .replace(/\r/g, '')
+    .replace(/[\x00-\x09\x0B-\x1F\x7F]/g, ' ');
+
+  const response = await fetch(`${SCHEDULE_API_URL}/parse`, {
+    method: 'POST',
+    headers: { 
+      'Content-Type': 'application/json' 
+    },
+    body: JSON.stringify({ raw_text: sanitizedText }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to parse text');
+  }
+
+  return response.json();
+}

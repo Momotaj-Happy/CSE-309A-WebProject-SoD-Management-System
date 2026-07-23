@@ -1,11 +1,11 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import type { UserRole } from '../types/user';
-import { Shield, LogOut, User as UserIcon, Sparkles, Building, Layers } from 'lucide-react';
+import { Shield, LogOut, User as UserIcon, Sparkles, Building, Layers, Calendar } from 'lucide-react';
 
 interface NavbarProps {
-  activeTab: 'directory' | 'profile' | 'rbac';
-  setActiveTab: (tab: 'directory' | 'profile' | 'rbac') => void;
+  activeTab: 'directory' | 'schedule' | 'profile' | 'rbac';
+  setActiveTab: (tab: 'directory' | 'schedule' | 'profile' | 'rbac') => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
@@ -64,6 +64,13 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
             >
               <Layers className="w-4 h-4 mr-2 inline-block" />
               User Directory
+            </button>
+            <button
+              className={`nav-btn ${activeTab === 'schedule' ? 'active' : ''}`}
+              onClick={() => setActiveTab('schedule')}
+            >
+              <Calendar className="w-4 h-4 mr-2 inline-block" />
+              IRAS Schedule Parser
             </button>
             <button
               className={`nav-btn ${activeTab === 'profile' ? 'active' : ''}`}

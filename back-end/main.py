@@ -1,6 +1,13 @@
+import sys
+from pathlib import Path
+
+# Force Python to include the current folder (back-end) in the search path
+sys.path.append(str(Path(__file__).resolve().parent))
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api.routes import auth, users
+from api.routes.schedule import router as schedule_router
 
 app = FastAPI(
     title="Departmental SoD Management System API",
@@ -13,15 +20,17 @@ app = FastAPI(
 # Enable CORS for frontend integration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Adjust in production as needed
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include Routers with /api/v1 prefix
+# Include Routers
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(users.router, prefix="/api/v1")
+app.include_router(schedule_router, prefix="/api/v1")
+app.include_router(schedule_router)  # Also include root schedule router for backward compatibility
 
 
 @app.get("/", tags=["Health Check"])
