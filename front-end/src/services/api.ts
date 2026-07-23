@@ -1,4 +1,5 @@
 import type { User, AuthResponse, UserLoginPayload, UserRegisterPayload, UpdateRolePayload } from '../types/user';
+import type { DutyTask, ShiftSwap, TaskStatus } from '../types/task';
 
 const API_BASE_URL = 'http://localhost:8000/api/v1';
 
@@ -38,6 +39,67 @@ const MOCK_USERS: User[] = [
   }
 ];
 
+const MOCK_TASKS: DutyTask[] = [
+  {
+    id: 'task-1',
+    title: 'Physics 101 Mechanics Lab Prep',
+    task_type: 'LAB',
+    location: 'Science Bldg Lab 201',
+    scheduled_date: '2026-07-24',
+    start_time: '09:00',
+    end_time: '12:00',
+    hourly_rate: 18.50,
+    student_id: 'mock-1',
+    assigned_by: 'Dr. Zaid Fahad',
+    status: 'PENDING',
+    log_notes: 'Calibrate oscilloscopes and set up optics apparatus.',
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'task-2',
+    title: 'Chemistry Midterm Exam Invigilation',
+    task_type: 'EXAM',
+    location: 'Auditorium Hall B',
+    scheduled_date: '2026-07-25',
+    start_time: '14:00',
+    end_time: '17:00',
+    hourly_rate: 20.00,
+    student_id: 'mock-1',
+    assigned_by: 'Prof. Charles Xavier',
+    status: 'PENDING',
+    log_notes: 'Distribute exam booklets and verify student ID cards.',
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'task-3',
+    title: 'Quantum Research Data Analysis',
+    task_type: 'FACULTY',
+    location: 'Faculty Office 405',
+    scheduled_date: '2026-07-26',
+    start_time: '10:00',
+    end_time: '13:00',
+    hourly_rate: 22.00,
+    student_id: 'mock-1',
+    assigned_by: 'Dr. Zaid Fahad',
+    status: 'COMPLETED',
+    log_notes: 'Processed Python spectra dataset cleanly.',
+    created_at: new Date().toISOString()
+  }
+];
+
+const MOCK_SWAPS: ShiftSwap[] = [
+  {
+    swap_id: 'swap-1',
+    task_id: 'task-1',
+    requestor_id: 'mock-1',
+    requestor_name: 'Momotaj Happy',
+    target_role: 'STUDENT',
+    reason: 'Academic schedule overlap with PHY202 lecture at 09:00 AM.',
+    status: 'OPEN',
+    created_at: new Date().toISOString()
+  }
+];
+
 class ApiClient {
   private getToken(): string | null {
     return localStorage.getItem('sod_auth_token');
@@ -68,10 +130,7 @@ class ApiClient {
       localStorage.setItem('sod_auth_token', data.access_token);
       return data;
     } catch (err: any) {
-      if (err.message && !err.message.includes('fetch')) {
-        throw err;
-      }
-      // Fallback local handling if server unreachable
+      if (err.message && !err.message.includes('fetch')) throw err;
       const cleanIdent = payload.email_or_dept_id.toLowerCase().trim();
       const matched = MOCK_USERS.find(
         (u) => u.email.toLowerCase() === cleanIdent || u.dept_id.toLowerCase() === cleanIdent
@@ -102,10 +161,7 @@ class ApiClient {
       localStorage.setItem('sod_auth_token', data.access_token);
       return data;
     } catch (err: any) {
-      if (err.message && !err.message.includes('fetch')) {
-        throw err;
-      }
-      // Fallback local registration
+      if (err.message && !err.message.includes('fetch')) throw err;
       const newUser: User = {
         id: `mock-${Date.now()}`,
         dept_id: payload.dept_id,
@@ -128,9 +184,7 @@ class ApiClient {
         headers: this.getHeaders()
       });
 
-      if (!response.ok) {
-        throw new Error('Session expired or invalid token');
-      }
+      if (!response.ok) throw new Error('Session expired or invalid token');
       return await response.json();
     } catch (err: any) {
       const token = this.getToken();
@@ -150,21 +204,12 @@ class ApiClient {
       if (search) params.append('search', search);
 
       const url = `${API_BASE_URL}/users${params.toString() ? `?${params.toString()}` : ''}`;
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: this.getHeaders()
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch user directory');
-      }
+      const response = await fetch(url, { method: 'GET', headers: this.getHeaders() });
+      if (!response.ok) throw new Error('Failed to fetch user directory');
       return await response.json();
     } catch (err: any) {
-      // Fallback filtering on MOCK_USERS
       let results = [...MOCK_USERS];
-      if (role) {
-        results = results.filter((u) => u.role === role);
-      }
+      if (role) results = results.filter((u) => u.role === role);
       if (search) {
         const s = search.toLowerCase();
         results = results.filter(
@@ -185,16 +230,13 @@ class ApiClient {
         headers: this.getHeaders(),
         body: JSON.stringify(payload)
       });
-
       if (!response.ok) {
         const errData = await response.json().catch(() => ({ detail: 'Role update failed' }));
         throw new Error(errData.detail || 'Permission denied or user not found');
       }
       return await response.json();
     } catch (err: any) {
-      if (err.message && !err.message.includes('fetch')) {
-        throw err;
-      }
+      if (err.message && !err.message.includes('fetch')) throw err;
       const target = MOCK_USERS.find((u) => u.id === payload.user_id);
       if (target) {
         target.role = payload.role;
@@ -210,19 +252,112 @@ class ApiClient {
         method: 'DELETE',
         headers: this.getHeaders()
       });
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({ detail: 'User deletion failed' }));
-        throw new Error(errData.detail || 'Failed to delete user');
-      }
+      if (!response.ok) throw new Error('Failed to delete user');
     } catch (err: any) {
-      if (err.message && !err.message.includes('fetch')) {
-        throw err;
-      }
+      if (err.message && !err.message.includes('fetch')) throw err;
       const index = MOCK_USERS.findIndex((u) => u.id === userId);
-      if (index !== -1) {
-        MOCK_USERS.splice(index, 1);
+      if (index !== -1) MOCK_USERS.splice(index, 1);
+    }
+  }
+
+  // Duty Tasks & Dashboard API
+  async listTasks(): Promise<DutyTask[]> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/tasks`, {
+        method: 'GET',
+        headers: this.getHeaders()
+      });
+      if (!response.ok) throw new Error('Failed to fetch tasks');
+      return await response.json();
+    } catch (err: any) {
+      return [...MOCK_TASKS];
+    }
+  }
+
+  async createTask(payload: any): Promise<DutyTask> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/tasks`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) throw new Error('Failed to create task');
+      return await response.json();
+    } catch (err: any) {
+      const newTask: DutyTask = {
+        id: `task-${Date.now()}`,
+        title: payload.title,
+        task_type: payload.task_type || 'LAB',
+        location: payload.location,
+        scheduled_date: payload.scheduled_date,
+        start_time: payload.start_time,
+        end_time: payload.end_time,
+        hourly_rate: payload.hourly_rate || 18.5,
+        student_id: payload.student_id || 'mock-1',
+        assigned_by: payload.assigned_by || 'Faculty Member',
+        status: 'PENDING',
+        created_at: new Date().toISOString()
+      };
+      MOCK_TASKS.unshift(newTask);
+      return newTask;
+    }
+  }
+
+  async updateTaskStatus(taskId: string, status: TaskStatus, log_notes?: string): Promise<DutyTask> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/tasks/${taskId}/status`, {
+        method: 'PATCH',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ status, log_notes })
+      });
+      if (!response.ok) throw new Error('Failed to update task status');
+      return await response.json();
+    } catch (err: any) {
+      const task = MOCK_TASKS.find((t) => t.id === taskId);
+      if (task) {
+        task.status = status;
+        if (log_notes) task.log_notes = log_notes;
+        return { ...task };
       }
+      throw new Error('Task not found');
+    }
+  }
+
+  async createSwap(taskId: string, reason: string): Promise<ShiftSwap> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/tasks/swaps`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ task_id: taskId, reason })
+      });
+      if (!response.ok) throw new Error('Failed to create shift swap');
+      return await response.json();
+    } catch (err: any) {
+      const newSwap: ShiftSwap = {
+        swap_id: `swap-${Date.now()}`,
+        task_id: taskId,
+        requestor_id: 'mock-1',
+        requestor_name: 'Momotaj Happy',
+        target_role: 'STUDENT',
+        reason,
+        status: 'OPEN',
+        created_at: new Date().toISOString()
+      };
+      MOCK_SWAPS.push(newSwap);
+      return newSwap;
+    }
+  }
+
+  async listSwaps(): Promise<ShiftSwap[]> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/tasks/swaps`, {
+        method: 'GET',
+        headers: this.getHeaders()
+      });
+      if (!response.ok) throw new Error('Failed to fetch swaps');
+      return await response.json();
+    } catch (err: any) {
+      return [...MOCK_SWAPS];
     }
   }
 }
@@ -247,16 +382,11 @@ export interface ScheduleResponse {
 const SCHEDULE_API_URL = 'http://localhost:8000/api/schedule';
 
 export async function parseScheduleApi(rawText: string): Promise<ScheduleResponse> {
-  const sanitizedText = rawText
-    .replace(/\r/g, '')
-    .replace(/[\x00-\x09\x0B-\x1F\x7F]/g, ' ');
-
+  const sanitizedText = rawText.replace(/\r/g, '').replace(/[\x00-\x09\x0B-\x1F\x7F]/g, ' ');
   const response = await fetch(`${SCHEDULE_API_URL}/parse`, {
     method: 'POST',
-    headers: { 
-      'Content-Type': 'application/json' 
-    },
-    body: JSON.stringify({ raw_text: sanitizedText }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ raw_text: sanitizedText })
   });
 
   if (!response.ok) {

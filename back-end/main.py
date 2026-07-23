@@ -6,12 +6,12 @@ sys.path.append(str(Path(__file__).resolve().parent))
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.routes import auth, users
+from api.routes import auth, users, tasks
 from api.routes.schedule import router as schedule_router
 
 app = FastAPI(
     title="Departmental SoD Management System API",
-    description="API services for Student on Duty (SoD) Management System, supporting User Auth, Role Management, and Scheduling.",
+    description="API services for Student on Duty (SoD) Management System, supporting User Auth, Role Management, Duty Tasks, and Scheduling.",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc"
@@ -29,6 +29,7 @@ app.add_middleware(
 # Include Routers
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(users.router, prefix="/api/v1")
+app.include_router(tasks.router, prefix="/api/v1")
 app.include_router(schedule_router, prefix="/api/v1")
 app.include_router(schedule_router)  # Also include root schedule router for backward compatibility
 
