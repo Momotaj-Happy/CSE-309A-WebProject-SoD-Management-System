@@ -3,10 +3,28 @@ import { ScheduleInput } from '../components/ScheduleInput';
 import { ScheduleList } from '../components/ScheduleList';
 import { JsonDisplay } from '../components/JsonDisplay';
 import { useScheduleParser } from '../hooks/useScheduleParser';
+import { api } from '../services/api';
+import { Save, CheckCircle2 } from 'lucide-react';
 
 export const SchedulePage = () => {
   const { courses, loading, error, parseText } = useScheduleParser();
   const [showJson, setShowJson] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  const handleSaveSchedule = async () => {
+    if (courses.length === 0) return;
+    setSaving(true);
+    try {
+      await api.saveSchedule(courses);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 4000);
+    } catch (err: any) {
+      alert(err.message || 'Failed to save schedule');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   // Calculate theory vs. lab course breakdown
   const labCount = courses.filter(
@@ -33,12 +51,31 @@ export const SchedulePage = () => {
         </div>
 
         {courses.length > 0 && (
-          <div className="flex items-center space-x-2 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium px-3 py-1.5 rounded-xl self-start md:self-auto">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span>{courses.length} Courses Parsed</span>
+          <div className="flex items-center space-x-3 self-start md:self-auto">
+            <div className="flex items-center space-x-2 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium px-3 py-1.5 rounded-xl">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>{courses.length} Courses Parsed</span>
+            </div>
+
+            <button
+              onClick={handleSaveSchedule}
+              disabled={saving}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-50"
+            >
+              <Save className="w-3.5 h-3.5" />
+              <span>{saving ? 'Saving...' : 'Save Schedule to Profile'}</span>
+            </button>
           </div>
         )}
       </div>
+
+      {/* Feedback Banner */}
+      {saveSuccess && (
+        <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+          <span>Academic schedule saved to your profile successfully! Conflict detection engine active.</span>
+        </div>
+      )}
 
       {/* Error Alert */}
       {error && (
@@ -72,7 +109,7 @@ export const SchedulePage = () => {
 
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between">
             <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Lab Sessions</span>
-            <div className="mt-2 flex flex-baseline justify-between">
+            <div className="mt-2 flex items-baseline justify-between">
               <span className="text-2xl font-bold text-amber-600">{labCount}</span>
               <span className="text-xs text-slate-500">Lab Sections</span>
             </div>

@@ -1,9 +1,43 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { api } from '../services/api';
+import type { Course, UnavailableSlot } from '../services/api';
 import { Shield, Mail, Hash, Calendar, CheckCircle2, UserCheck, Key, Clock } from 'lucide-react';
+import { ScheduleWeeklyGrid } from './ScheduleWeeklyGrid';
 
 export const UserProfileCard: React.FC = () => {
   const { user } = useAuth();
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [unavailableSlots, setUnavailableSlots] = useState<UnavailableSlot[]>([]);
+  const [loadingSchedule, setLoadingSchedule] = useState(true);
+
+  const fetchSchedule = async () => {
+    setLoadingSchedule(true);
+    try {
+      const res = await api.getSchedule();
+      setCourses(res.courses || []);
+      setUnavailableSlots(res.unavailable_slots || []);
+    } catch (err) {
+      console.error('Error loading schedule:', err);
+    } finally {
+      setLoadingSchedule(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchSchedule();
+    }
+  }, [user]);
+
+  const handleDeleteSlot = async (slotId: string) => {
+    try {
+      await api.deleteUnavailableSlot(slotId);
+      fetchSchedule();
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete slot');
+    }
+  };
 
   if (!user) return null;
 
@@ -81,6 +115,20 @@ export const UserProfileCard: React.FC = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Student Timetable Grid Section */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
+        {loadingSchedule ? (
+          <div className="p-8 text-center text-xs text-slate-500">Loading academic schedule...</div>
+        ) : (
+          <ScheduleWeeklyGrid
+            courses={courses}
+            unavailableSlots={unavailableSlots}
+            onRefresh={fetchSchedule}
+            onDeleteSlot={handleDeleteSlot}
+          />
+        )}
       </div>
 
       {/* Grid */}

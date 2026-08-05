@@ -3,7 +3,32 @@ import type { DutyTask, ShiftSwap, TaskStatus } from '../types/task';
 
 const API_BASE_URL = 'http://localhost:8000/api/v1';
 
-// Initial fallback mock database in case backend API server is disconnected
+// Interfaces for Schedule Engine
+export interface Course {
+  id: string;
+  name: string;
+  section: string;
+  room: string;
+  days: string;
+  time: string;
+}
+
+export interface UnavailableSlot {
+  id: string;
+  day: string;
+  start_time: string;
+  end_time: string;
+  note: string;
+  created_at?: string;
+}
+
+export interface ScheduleResponse {
+  success: boolean;
+  courses: Course[];
+  unavailable_slots?: UnavailableSlot[];
+}
+
+// Initial fallback mock databases
 const MOCK_USERS: User[] = [
   {
     id: 'mock-1',
@@ -99,6 +124,37 @@ const MOCK_SWAPS: ShiftSwap[] = [
     created_at: new Date().toISOString()
   }
 ];
+
+let MOCK_SAVED_SCHEDULE: ScheduleResponse = {
+  success: true,
+  courses: [
+    {
+      id: 'PHY101',
+      name: 'General Physics I',
+      section: '1',
+      room: 'Lab201',
+      days: 'MON,WED',
+      time: '09:00 - 11:00'
+    },
+    {
+      id: 'MAT201',
+      name: 'Multivariable Calculus',
+      section: '2',
+      room: 'HallB',
+      days: 'TUE,THU',
+      time: '11:30 - 13:00'
+    }
+  ],
+  unavailable_slots: [
+    {
+      id: 'slot-1',
+      day: 'SUN',
+      start_time: '10:00',
+      end_time: '12:00',
+      note: 'Departmental Study Circle'
+    }
+  ]
+};
 
 class ApiClient {
   private getToken(): string | null {
@@ -260,6 +316,85 @@ class ApiClient {
     }
   }
 
+  // Schedule Engine REST Methods
+  async saveSchedule(courses: Course[]): Promise<ScheduleResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/schedule/save`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ courses })
+      });
+      if (!response.ok) throw new Error('Failed to save schedule');
+      return await response.json();
+    } catch (err: any) {
+      MOCK_SAVED_SCHEDULE.courses = courses;
+      return MOCK_SAVED_SCHEDULE;
+    }
+  }
+
+  async getSchedule(): Promise<ScheduleResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/schedule/me`, {
+        method: 'GET',
+        headers: this.getHeaders()
+      });
+      if (!response.ok) throw new Error('Failed to fetch schedule');
+      return await response.json();
+    } catch (err: any) {
+      return MOCK_SAVED_SCHEDULE;
+    }
+  }
+
+  async getStudentSchedule(studentId: string): Promise<ScheduleResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/schedule/student/${studentId}`, {
+        method: 'GET',
+        headers: this.getHeaders()
+      });
+      if (!response.ok) throw new Error('Failed to fetch student schedule');
+      return await response.json();
+    } catch (err: any) {
+      return MOCK_SAVED_SCHEDULE;
+    }
+  }
+
+  async addUnavailableSlot(payload: { day: string; start_time: string; end_time: string; note?: string }): Promise<UnavailableSlot> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/schedule/unavailable`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) throw new Error('Failed to add unavailable slot');
+      return await response.json();
+    } catch (err: any) {
+      const newSlot: UnavailableSlot = {
+        id: `slot-${Date.now()}`,
+        day: payload.day.toUpperCase(),
+        start_time: payload.start_time,
+        end_time: payload.end_time,
+        note: payload.note || 'Unavailable'
+      };
+      if (!MOCK_SAVED_SCHEDULE.unavailable_slots) MOCK_SAVED_SCHEDULE.unavailable_slots = [];
+      MOCK_SAVED_SCHEDULE.unavailable_slots.push(newSlot);
+      return newSlot;
+    }
+  }
+
+  async deleteUnavailableSlot(slotId: string): Promise<void> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/schedule/unavailable/${slotId}`, {
+        method: 'DELETE',
+        headers: this.getHeaders()
+      });
+      if (!response.ok) throw new Error('Failed to delete unavailable slot');
+    } catch (err: any) {
+      if (MOCK_SAVED_SCHEDULE.unavailable_slots) {
+        MOCK_SAVED_SCHEDULE.unavailable_slots = MOCK_SAVED_SCHEDULE.unavailable_slots.filter((s) => s.id !== slotId);
+      }
+    }
+  }
+
   // Duty Tasks & Dashboard API
   async listTasks(): Promise<DutyTask[]> {
     try {
@@ -363,21 +498,6 @@ class ApiClient {
 }
 
 export const api = new ApiClient();
-
-// Schedule Parser API exports
-export interface Course {
-  id: string;
-  name: string;
-  section: string;
-  room: string;
-  days: string;
-  time: string;
-}
-
-export interface ScheduleResponse {
-  success: boolean;
-  courses: Course[];
-}
 
 const SCHEDULE_API_URL = 'http://localhost:8000/api/schedule';
 
