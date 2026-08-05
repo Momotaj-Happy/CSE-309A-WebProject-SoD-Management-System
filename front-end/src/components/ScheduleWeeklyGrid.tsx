@@ -22,6 +22,16 @@ const DAY_LABELS: Record<string, string> = {
   SUN: 'Sunday'
 };
 
+const DAY_CODE_MAP: Record<string, string[]> = {
+  MON: ['MON', 'M'],
+  TUE: ['TUE', 'T'],
+  WED: ['WED', 'W'],
+  THU: ['THU', 'R'],
+  FRI: ['FRI', 'F'],
+  SAT: ['SAT', 'A'],
+  SUN: ['SUN', 'S']
+};
+
 export const ScheduleWeeklyGrid: React.FC<ScheduleWeeklyGridProps> = ({
   courses,
   unavailableSlots,
@@ -33,9 +43,10 @@ export const ScheduleWeeklyGrid: React.FC<ScheduleWeeklyGridProps> = ({
 
   // Helper to check if course belongs to day
   const getCoursesForDay = (day: string) => {
+    const validCodes = DAY_CODE_MAP[day] || [day];
     return courses.filter((c) => {
       const d = c.days.toUpperCase();
-      return d.includes(day);
+      return validCodes.some((code) => d.includes(code));
     });
   };
 

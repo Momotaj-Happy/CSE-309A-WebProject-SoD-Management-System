@@ -35,6 +35,26 @@ def test_parse_raw_schedule():
     assert len(data["courses"]) >= 1
 
 
+def test_parse_full_iras_table():
+    raw_text = """Code	Name	Sec	Room	Time	Attendance*	Attendance %	Grade
+CSE204	Digital Logic Design	1	MK5006	ST:11:20-12:50	20 / 30	66.67 %	Z
+CSE204L	Labwork based on CSE 204	1	CENLAB2	S:13:00-14:30	20 / 30	66.67 %	Z
+CSE210	Electronics I	2	BC6012	MW:13:00-14:30	14 / 29	48.28 %	W
+CSE210L	Labwork based on CSE 210	1	CENLAB3	W:09:40-11:10	14 / 29	48.28 %	W
+CSE309A	Web Programming	6	MK7006L	AR:14:40-16:10	16 / 21	76.19 %	Z
+CSE451	Software Engineering	2	BC6013	M:18:30-21:30	10 / 11	90.91 %	Z"""
+
+    res = client.post("/api/v1/schedule/parse", json={"raw_text": raw_text})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["success"] is True
+    assert len(data["courses"]) == 6
+    course_ids = [c["id"] for c in data["courses"]]
+    assert "CSE204" in course_ids
+    assert "CSE309A" in course_ids
+    assert "CSE451" in course_ids
+
+
 def test_save_and_get_schedule():
     token = get_student_token()
     courses_payload = {
@@ -117,6 +137,7 @@ def test_faculty_inspect_student_schedule():
 if __name__ == "__main__":
     print("Running Schedule Engine unit tests...")
     test_parse_raw_schedule()
+    test_parse_full_iras_table()
     test_save_and_get_schedule()
     test_unavailable_slot_crud()
     test_faculty_inspect_student_schedule()
