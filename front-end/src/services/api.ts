@@ -395,6 +395,37 @@ class ApiClient {
     }
   }
 
+  async updateCourse(courseId: string, payload: Partial<Course>): Promise<Course> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/schedule/courses/${courseId}`, {
+        method: 'PUT',
+        headers: this.getHeaders(),
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) throw new Error('Failed to update course');
+      return await response.json();
+    } catch (err: any) {
+      const target = MOCK_SAVED_SCHEDULE.courses.find((c) => c.id === courseId);
+      if (target) {
+        Object.assign(target, payload);
+        return { ...target };
+      }
+      throw new Error('Course not found');
+    }
+  }
+
+  async deleteCourse(courseId: string): Promise<void> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/schedule/courses/${courseId}`, {
+        method: 'DELETE',
+        headers: this.getHeaders()
+      });
+      if (!response.ok) throw new Error('Failed to delete course');
+    } catch (err: any) {
+      MOCK_SAVED_SCHEDULE.courses = MOCK_SAVED_SCHEDULE.courses.filter((c) => c.id !== courseId);
+    }
+  }
+
   // Duty Tasks & Dashboard API
   async listTasks(): Promise<DutyTask[]> {
     try {
@@ -499,20 +530,32 @@ class ApiClient {
 
 export const api = new ApiClient();
 
-const SCHEDULE_API_URL = 'http://localhost:8000/api/schedule';
+const SCHEDULE_API_URLS = [
+  'http://localhost:8000/api/v1/schedule/parse',
+  'http://localhost:8000/api/schedule/parse'
+];
 
 export async function parseScheduleApi(rawText: string): Promise<ScheduleResponse> {
   const sanitizedText = rawText.replace(/\r/g, '').replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/g, '');
-  const response = await fetch(`${SCHEDULE_API_URL}/parse`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ raw_text: sanitizedText })
-  });
+  let lastError: any = null;
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || 'Failed to parse text');
+  for (const url of SCHEDULE_API_URLS) {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ raw_text: sanitizedText })
+      });
+
+      if (response.ok) {
+        return await response.json();
+      }
+      const errData = await response.json().catch(() => ({ detail: 'Failed to parse text' }));
+      lastError = new Error(errData.detail || 'Failed to parse text');
+    } catch (err: any) {
+      lastError = err;
+    }
   }
 
-  return response.json();
+  throw lastError || new Error('Failed to connect to schedule parser API');
 }

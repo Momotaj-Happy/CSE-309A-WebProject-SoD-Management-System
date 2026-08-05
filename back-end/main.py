@@ -31,7 +31,8 @@ app.include_router(auth.router, prefix="/api/v1")
 app.include_router(users.router, prefix="/api/v1")
 app.include_router(tasks.router, prefix="/api/v1")
 app.include_router(schedule_router, prefix="/api/v1")
-app.include_router(schedule_router)  # Also include root schedule router for backward compatibility
+app.include_router(schedule_router, prefix="/api")
+app.include_router(schedule_router)
 
 
 @app.get("/", tags=["Health Check"])

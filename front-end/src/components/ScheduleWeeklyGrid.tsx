@@ -8,6 +8,7 @@ interface ScheduleWeeklyGridProps {
   unavailableSlots: UnavailableSlot[];
   onRefresh: () => void;
   onDeleteSlot?: (slotId: string) => void;
+  onDeleteCourse?: (courseId: string) => void;
   isReadOnly?: boolean;
 }
 
@@ -37,6 +38,7 @@ export const ScheduleWeeklyGrid: React.FC<ScheduleWeeklyGridProps> = ({
   unavailableSlots,
   onRefresh,
   onDeleteSlot,
+  onDeleteCourse,
   isReadOnly = false
 }) => {
   const [showAddModal, setShowAddModal] = useState(false);
@@ -104,9 +106,20 @@ export const ScheduleWeeklyGrid: React.FC<ScheduleWeeklyGridProps> = ({
                 {dayCourses.map((c) => (
                   <div
                     key={`${c.id}-${day}`}
-                    className="bg-indigo-50/90 border border-indigo-200 rounded-xl p-2 text-xs shadow-2xs"
+                    className="bg-indigo-50/90 border border-indigo-200 rounded-xl p-2 text-xs shadow-2xs relative group"
                   >
-                    <div className="font-bold text-indigo-900 text-[11px] leading-tight">{c.id}</div>
+                    <div className="flex items-center justify-between">
+                      <div className="font-bold text-indigo-900 text-[11px] leading-tight">{c.id}</div>
+                      {!isReadOnly && onDeleteCourse && (
+                        <button
+                          onClick={() => onDeleteCourse(c.id)}
+                          className="text-indigo-400 hover:text-indigo-700 cursor-pointer p-0.5"
+                          title="Remove course from schedule"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
                     <div className="text-[10px] font-medium text-indigo-700 truncate">{c.name}</div>
                     <div className="text-[10px] text-indigo-600 font-mono flex items-center gap-1 mt-1">
                       <Clock className="w-3 h-3 text-indigo-400" /> {c.time}

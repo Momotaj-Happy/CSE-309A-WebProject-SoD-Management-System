@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from api.models.schedule import (
     ScheduleRequest,
     SaveScheduleRequest,
+    CourseItem,
+    CourseUpdate,
     UnavailableSlotCreate,
     UnavailableSlotResponse,
     ScheduleResponse
@@ -61,6 +63,39 @@ def get_student_schedule_by_id(
         )
 
     return ScheduleService.get_schedule(student_id)
+
+
+@router.put("/courses/{course_id}", response_model=CourseItem)
+def update_course(
+    course_id: str,
+    payload: CourseUpdate,
+    token_payload: dict = Depends(get_current_token_payload)
+):
+    """Updates specific attributes of an enrolled course."""
+    student_id = token_payload.get("sub")
+    if not student_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session token")
+
+    updated = ScheduleService.update_course(student_id, course_id, payload)
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Course not found in schedule")
+    return updated
+
+
+@router.delete("/courses/{course_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_course(
+    course_id: str,
+    token_payload: dict = Depends(get_current_token_payload)
+):
+    """Deletes a course from the student's academic schedule."""
+    student_id = token_payload.get("sub")
+    if not student_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session token")
+
+    success = ScheduleService.delete_course(student_id, course_id)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Course not found in schedule")
+    return None
 
 
 @router.post("/unavailable", response_model=UnavailableSlotResponse, status_code=status.HTTP_201_CREATED)

@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional
 from api.models.schedule import (
     CourseItem,
+    CourseUpdate,
     UnavailableSlotCreate,
     UnavailableSlotResponse,
     ScheduleResponse
@@ -83,6 +84,37 @@ class ScheduleService:
 
         _SCHEDULES_DB[student_id]["courses"] = [c.model_dump() for c in courses]
         return ScheduleService.get_schedule(student_id)
+
+    @staticmethod
+    def update_course(student_id: str, course_id: str, payload: CourseUpdate) -> Optional[CourseItem]:
+        if student_id not in _SCHEDULES_DB:
+            return None
+
+        courses = _SCHEDULES_DB[student_id].get("courses", [])
+        for c in courses:
+            if c["id"] == course_id:
+                if payload.name is not None:
+                    c["name"] = payload.name.strip()
+                if payload.section is not None:
+                    c["section"] = payload.section.strip()
+                if payload.room is not None:
+                    c["room"] = payload.room.strip()
+                if payload.days is not None:
+                    c["days"] = payload.days.strip()
+                if payload.time is not None:
+                    c["time"] = payload.time.strip()
+                return CourseItem(**c)
+        return None
+
+    @staticmethod
+    def delete_course(student_id: str, course_id: str) -> bool:
+        if student_id not in _SCHEDULES_DB:
+            return False
+
+        courses = _SCHEDULES_DB[student_id].get("courses", [])
+        initial_count = len(courses)
+        _SCHEDULES_DB[student_id]["courses"] = [c for c in courses if c["id"] != course_id]
+        return len(_SCHEDULES_DB[student_id]["courses"]) < initial_count
 
     @staticmethod
     def add_unavailable_slot(student_id: str, payload: UnavailableSlotCreate) -> UnavailableSlotResponse:

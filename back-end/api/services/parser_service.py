@@ -36,6 +36,17 @@ def normalize_days(raw_days: str) -> str:
 
 
 class ParserService:
+    # Primary line-level pattern matching both tabbed and space-separated table rows
+    LINE_PATTERN = re.compile(
+        r'^\s*(?P<code>[A-Z]{2,5}\d{3}[A-Z]*)'
+        r'[\t\s]+(?P<name>.+?)'
+        r'[\t\s]+(?P<sec>\d{1,2}[A-Za-z]*)'
+        r'[\t\s]+(?P<room>[A-Za-z0-9_]+)'
+        r'[\t\s]+(?P<days>[A-Za-z,]{1,7})\s*:\s*'
+        r'(?P<start_time>\d{1,2}:\d{2})\s*-\s*(?P<end_time>\d{1,2}:\d{2})',
+        re.MULTILINE
+    )
+
     TABBED_PATTERN = re.compile(
         r'(?P<code>[A-Z]{2,5}\d{3}[A-Z]*)'
         r'[\t\s]+'
@@ -46,8 +57,8 @@ class ParserService:
         r'(?P<room>[A-Za-z0-9_]+)'
         r'[\t\s]+'
         r'(?P<days>[A-Za-z,]{1,7}):'
-        r'(?P<start_time>\d{2}:\d{2})-'
-        r'(?P<end_time>\d{2}:\d{2})'
+        r'(?P<start_time>\d{1,2}:\d{2})-'
+        r'(?P<end_time>\d{1,2}:\d{2})'
     )
 
     CONDENSED_PATTERN = re.compile(
@@ -56,8 +67,8 @@ class ParserService:
         r'(?P<sec>\d{1,2})'
         r'(?P<room>[A-Z][A-Za-z0-9_]*)'
         r'(?P<days>[A-Za-z,]{1,7}):'
-        r'(?P<start_time>\d{2}:\d{2})-'
-        r'(?P<end_time>\d{2}:\d{2})'
+        r'(?P<start_time>\d{1,2}:\d{2})-'
+        r'(?P<end_time>\d{1,2}:\d{2})'
     )
 
     @classmethod
@@ -69,36 +80,52 @@ class ParserService:
 
         courses: List[CourseItem] = []
 
-        # Strategy 1: Tab-separated line parsing (directly copied from IRAS table)
-        lines = [line.strip() for line in cleaned_text.split('\n') if line.strip()]
-        for line in lines:
-            parts = [p.strip() for p in line.split('\t') if p.strip()]
-            if parts and re.match(r'^[A-Z]{2,5}\d{3}[A-Z]*$', parts[0]):
-                if len(parts) >= 5:
-                    code = parts[0]
-                    name = parts[1]
-                    sec = parts[2]
-                    room = parts[3]
-                    time_raw = parts[4]
-                    if ':' in time_raw:
-                        days_raw, time_range = time_raw.split(':', 1)
-                    else:
-                        days_raw, time_range = 'MON', time_raw
+        # Strategy 1: Multi-line pattern matching (handles tabbed & space-separated rows)
+        line_matches = list(cls.LINE_PATTERN.finditer(cleaned_text))
+        for match in line_matches:
+            data = match.groupdict()
+            s_time = data['start_time'].zfill(5)
+            e_time = data['end_time'].zfill(5)
+            courses.append(
+                CourseItem(
+                    id=data['code'].strip(),
+                    name=data['name'].strip(),
+                    section=data['sec'].strip(),
+                    room=data['room'].strip(),
+                    days=normalize_days(data['days'].strip()),
+                    time=f"{s_time} - {e_time}"
+                )
+            )
 
-                    # Standardize time format: e.g. 11:20-12:50 -> 11:20 - 12:50
-                    time_str = time_range.replace('-', ' - ').replace('  ', ' ')
-                    courses.append(
-                        CourseItem(
-                            id=code,
-                            name=name,
-                            section=sec,
-                            room=room,
-                            days=normalize_days(days_raw),
-                            time=time_str
+        # Strategy 2: Tab-separated line split fallback if strategy 1 yielded no matches
+        if not courses:
+            lines = [line.strip() for line in cleaned_text.split('\n') if line.strip()]
+            for line in lines:
+                parts = [p.strip() for p in line.split('\t') if p.strip()]
+                if parts and re.match(r'^[A-Z]{2,5}\d{3}[A-Z]*$', parts[0]):
+                    if len(parts) >= 5:
+                        code = parts[0]
+                        name = parts[1]
+                        sec = parts[2]
+                        room = parts[3]
+                        time_raw = parts[4]
+                        if ':' in time_raw:
+                            days_raw, time_range = time_raw.split(':', 1)
+                        else:
+                            days_raw, time_range = 'MON', time_raw
+
+                        courses.append(
+                            CourseItem(
+                                id=code,
+                                name=name,
+                                section=sec,
+                                room=room,
+                                days=normalize_days(days_raw),
+                                time=time_range.replace('-', ' - ').replace('  ', ' ')
+                            )
                         )
-                    )
 
-        # Strategy 2: Regex matching if tab-separated line parsing returned nothing
+        # Strategy 3: Tabbed/Condensed regex fallback
         if not courses:
             matches = list(cls.TABBED_PATTERN.finditer(cleaned_text))
             if not matches:

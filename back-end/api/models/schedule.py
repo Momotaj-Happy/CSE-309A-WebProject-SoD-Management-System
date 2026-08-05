@@ -9,6 +9,13 @@ class CourseItem(BaseModel):
     days: str
     time: str
 
+class CourseUpdate(BaseModel):
+    name: Optional[str] = None
+    section: Optional[str] = None
+    room: Optional[str] = None
+    days: Optional[str] = None
+    time: Optional[str] = None
+
 class ScheduleRequest(BaseModel):
     raw_text: str
 

@@ -91,6 +91,41 @@ def test_save_and_get_schedule():
     assert any(c["id"] == "CSE309" for c in get_data["courses"])
 
 
+def test_course_update_and_delete_crud():
+    token = get_student_token()
+    courses_payload = {
+        "courses": [
+            {
+                "id": "CSE204",
+                "name": "Digital Logic Design",
+                "section": "1",
+                "room": "MK5006",
+                "days": "SUN, TUE",
+                "time": "11:20 - 12:50"
+            }
+        ]
+    }
+    client.post("/api/v1/schedule/save", headers={"Authorization": f"Bearer {token}"}, json=courses_payload)
+
+    # PUT Update Course
+    update_res = client.put(
+        "/api/v1/schedule/courses/CSE204",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"room": "MK5007", "section": "2"}
+    )
+    assert update_res.status_code == 200
+    updated_course = update_res.json()
+    assert updated_course["room"] == "MK5007"
+    assert updated_course["section"] == "2"
+
+    # DELETE Course
+    del_res = client.delete(
+        "/api/v1/schedule/courses/CSE204",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert del_res.status_code == 204
+
+
 def test_unavailable_slot_crud():
     token = get_student_token()
     slot_payload = {
@@ -139,6 +174,7 @@ if __name__ == "__main__":
     test_parse_raw_schedule()
     test_parse_full_iras_table()
     test_save_and_get_schedule()
+    test_course_update_and_delete_crud()
     test_unavailable_slot_crud()
     test_faculty_inspect_student_schedule()
     print("SCHEDULE ENGINE BACKEND TESTS PASSED SUCCESSFULLY!")

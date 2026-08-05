@@ -39,6 +39,15 @@ export const UserProfileCard: React.FC = () => {
     }
   };
 
+  const handleDeleteCourse = async (courseId: string) => {
+    try {
+      await api.deleteCourse(courseId);
+      fetchSchedule();
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete course');
+    }
+  };
+
   if (!user) return null;
 
   const getRoleCapabilities = (role: string) => {
@@ -127,6 +136,7 @@ export const UserProfileCard: React.FC = () => {
             unavailableSlots={unavailableSlots}
             onRefresh={fetchSchedule}
             onDeleteSlot={handleDeleteSlot}
+            onDeleteCourse={handleDeleteCourse}
           />
         )}
       </div>
