@@ -13,7 +13,7 @@ class ParserService:
         r'[\t\s]+'
         r'(?P<room>[A-Za-z0-9_]+)'
         r'[\t\s]+'
-        r'(?P<days>[SMTWFRA]{1,3}):'
+        r'(?P<days>[A-Za-z,]{1,7}):'
         r'(?P<start_time>\d{2}:\d{2})-'
         r'(?P<end_time>\d{2}:\d{2})'
     )
@@ -24,7 +24,7 @@ class ParserService:
         r'(?P<name>[^:]+)'
         r'(?P<sec>\d{1,2})'
         r'(?P<room>[A-Z][A-Za-z0-9_]*)'
-        r'(?P<days>[SMTWFRA]{1,3}):'
+        r'(?P<days>[A-Za-z,]{1,7}):'
         r'(?P<start_time>\d{2}:\d{2})-'
         r'(?P<end_time>\d{2}:\d{2})'
     )
