@@ -526,6 +526,63 @@ class ApiClient {
       return [...MOCK_SWAPS];
     }
   }
+
+  async acceptSwap(swapId: string): Promise<ShiftSwap> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/tasks/swaps/${swapId}/accept`, {
+        method: 'POST',
+        headers: this.getHeaders()
+      });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({ detail: 'Failed to accept swap' }));
+        throw new Error(errData.detail || 'Failed to accept swap');
+      }
+      return await response.json();
+    } catch (err: any) {
+      const target = MOCK_SWAPS.find((s) => s.swap_id === swapId);
+      if (target) {
+        target.status = 'ACCEPTED';
+        return { ...target };
+      }
+      throw err;
+    }
+  }
+
+  async cancelSwap(swapId: string): Promise<void> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/tasks/swaps/${swapId}`, {
+        method: 'DELETE',
+        headers: this.getHeaders()
+      });
+      if (!response.ok) throw new Error('Failed to cancel swap');
+    } catch (err: any) {
+      const index = MOCK_SWAPS.findIndex((s) => s.swap_id === swapId);
+      if (index !== -1) MOCK_SWAPS.splice(index, 1);
+    }
+  }
+
+  async getSwapAuditLog(): Promise<any[]> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/tasks/swaps/audit-log`, {
+        method: 'GET',
+        headers: this.getHeaders()
+      });
+      if (!response.ok) throw new Error('Failed to fetch swap audit log');
+      return await response.json();
+    } catch (err: any) {
+      return [
+        {
+          id: 'audit-1',
+          event_type: 'SWAP_CREATED',
+          swap_id: 'swap-1',
+          task_id: 'task-1',
+          performed_by: 'Momotaj Happy',
+          details: 'Shift swap requested for Physics 101 Mechanics Lab Prep',
+          timestamp: new Date().toISOString()
+        }
+      ];
+    }
+  }
 }
 
 export const api = new ApiClient();
