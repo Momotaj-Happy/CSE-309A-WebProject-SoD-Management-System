@@ -111,4 +111,4 @@ if __name__ == "__main__":
     test_get_current_user_profile()
     test_list_and_filter_users()
     test_update_role_permission()
-    print("ALL BACKEND TESTS PASSED SUCCESSFULLY! ✅")
+    print("ALL BACKEND TESTS PASSED SUCCESSFULLY!")

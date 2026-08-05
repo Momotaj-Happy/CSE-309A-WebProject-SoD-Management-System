@@ -68,3 +68,23 @@ def get_current_token_payload(credentials: HTTPAuthorizationCredentials = Depend
     """FastAPI Dependency to get current payload from Bearer header."""
     token = credentials.credentials
     return decode_access_token(token)
+
+
+def get_current_user(token_payload: Dict[str, Any] = Depends(get_current_token_payload)) -> Dict[str, Any]:
+    """FastAPI Dependency to get current user object or dictionary from decoded JWT token."""
+    user_id = token_payload.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
+
+    from api.services.user_service import UserService
+    user = UserService.get_by_id(user_id)
+    if user:
+        return user.model_dump()
+
+    return {
+        "id": user_id,
+        "email": token_payload.get("email", "user@sod.edu"),
+        "full_name": token_payload.get("full_name", "System User"),
+        "role": token_payload.get("role", "STUDENT"),
+        "dept_id": token_payload.get("dept_id", "SOD-2024-001")
+    }
