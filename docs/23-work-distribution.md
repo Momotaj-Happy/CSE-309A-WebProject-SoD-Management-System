@@ -1,91 +1,101 @@
-# Departmental SoD Management System - Project Overview & Work Distribution Plan
+# Departmental SoD Management System - Feature Breakdown & Work Distribution Plan
 
-## Executive Project Overview
+## Technical Architecture Overview
 
-The **Departmental SoD (Student on Duty) Management System** is a specialized web platform for the Department of Physical Science designed to automate student duty tracking, task assignments, shift swapping, and monthly bill processing.
-
-### Key Modules & Requirements (from Docs):
-1. **Identity & Role-Based Access Control (RBAC):** Student (SoD), Faculty, Lab Manager, Department Manager.
-2. **IRAS Schedule Engine:** Raw text schedule parser, availability visualization, unavailable slot overrides, and conflict detection.
-3. **Task & Duty Orchestration:** Lab Duty, Exam Invigilation, and Faculty Research assignments with real-time personal dashboards.
-4. **Broadcast Proxy Engine:** Shift swap broadcasting, availability-based matching, and swap audit logging.
-5. **Financial Billing Approval Pipeline:** Multi-stage approval (Student Draft -> Faculty Verification -> Manager Approval) with real-time earnings tracking.
-6. **Reporting & Exports:** 1-Click visual schedule PNG export, CSV payroll reports, and immutable audit logs.
+The system is built on a decoupled client-server architecture:
+- **Backend:** FastAPI (Python 3.11+) implementing RESTful APIs with Pydantic schema validation, JWT Bearer authentication, and HTTP response handling.
+- **Frontend:** React 18 (TypeScript) built with Vite, Tailwind CSS, custom hooks, and centralized state management via Context API and API client abstractions.
 
 ---
 
-## Current Progress & Completed Work
+## Technical Feature Breakdown (Full-Stack CRUD & REST Specifications)
 
-Based on repository history and merged Pull Requests on `main`:
-- **Completed (Issues #30, #31, #32, #33):** Frontend scaffold (Vite + React + TS + Tailwind) & Backend API scaffold (FastAPI + Pydantic).
-- **Completed (Issue #34 / PR #35):** Core IRAS schedule parser algorithm (`/api/schedule/parse`).
-- **Completed (Issue #36 / PR #37):** User Management & Auth System (JWT Authentication, User Registration/Login, User Directory, RBAC Matrix).
+### Feature 1: Academic Schedule Engine & Availability Management
+- **Backend (FastAPI):**
+  - **Data Models / Pydantic Schemas:** `CourseItem`, `AcademicSchedule`, `SaveScheduleRequest`, `UnavailableSlotCreate`, `ScheduleResponse`.
+  - **REST API Endpoints (CRUD):**
+    - `POST /api/v1/schedule` - Create/persist student academic schedule.
+    - `GET /api/v1/schedule/me` - Read authenticated student's schedule.
+    - `GET /api/v1/schedule/student/{student_id}` - Read student schedule by ID (Faculty/Manager permission).
+    - `PUT /api/v1/schedule/me` - Update existing course slots or schedule entries.
+    - `POST /api/v1/schedule/unavailable` - Create custom unavailable time slots.
+    - `DELETE /api/v1/schedule/unavailable/{slot_id}` - Delete custom unavailable slot.
+- **Frontend (React + TypeScript):**
+  - **Components:** `SchedulePage`, `ScheduleWeeklyGrid`, `ScheduleInput`, `UnavailableSlotModal`.
+  - **Hooks & Services:** `useAcademicSchedule`, `api.saveSchedule()`, `api.getSchedule()`, `api.deleteUnavailableSlot()`.
+
+### Feature 2: Duty Task & Schedule Conflict Detection Engine
+- **Backend (FastAPI):**
+  - **Data Models / Pydantic Schemas:** `DutyTask`, `DutyTaskCreate`, `DutyTaskUpdate`, `TaskStatusEnum` (`PENDING`, `COMPLETED`, `CANCELLED`, `SWAPPED`).
+  - **REST API Endpoints (CRUD):**
+    - `POST /api/v1/tasks` - Create new duty task with overlap validation (returns `HTTP 409 Conflict` if duty overlaps student's class schedule or unavailable slot).
+    - `GET /api/v1/tasks` - Read duty tasks with query parameters (`student_id`, `status`, `task_type`).
+    - `GET /api/v1/tasks/{task_id}` - Read single task record details.
+    - `PATCH /api/v1/tasks/{task_id}` - Update task status or completion log notes.
+    - `DELETE /api/v1/tasks/{task_id}` - Delete/cancel assigned duty task.
+- **Frontend (React + TypeScript):**
+  - **Components:** `FacultyTaskAssignment`, `StudentDuties`, `TaskConflictAlert`, `TaskDetailModal`.
+  - **Hooks & Services:** `useTasks`, `api.createTask()`, `api.listTasks()`, `api.updateTaskStatus()`, `api.deleteTask()`.
+
+### Feature 3: Shift Swap Proxy Engine & Audit Logging
+- **Backend (FastAPI):**
+  - **Data Models / Pydantic Schemas:** `SwapRequest`, `SwapRequestCreate`, `ShiftSwapResponse`, `AuditLogEntry`.
+  - **REST API Endpoints (CRUD):**
+    - `POST /api/v1/tasks/swaps` - Create shift swap request for an assigned task.
+    - `GET /api/v1/tasks/swaps` - Read open swap requests filtered by user eligibility.
+    - `GET /api/v1/tasks/swaps/{swap_id}` - Read single swap request details.
+    - `POST /api/v1/tasks/swaps/{swap_id}/accept` - Accept swap request (validates accepting student's class schedule, updates task `student_id`).
+    - `DELETE /api/v1/tasks/swaps/{swap_id}` - Cancel/withdraw open swap request.
+    - `GET /api/v1/tasks/swaps/audit-log` - Read immutable audit trail of swap transactions.
+- **Frontend (React + TypeScript):**
+  - **Components:** `Dashboard`, `ShiftSwapFeed`, `SwapRequestModal`, `SwapAuditTable`.
+  - **Hooks & Services:** `useShiftSwaps`, `api.createSwap()`, `api.listSwaps()`, `api.acceptSwap()`, `api.cancelSwap()`.
+
+### Feature 4: Monthly Financial Billing & Multi-Stage Approval Pipeline
+- **Backend (FastAPI):**
+  - **Data Models / Pydantic Schemas:** `MonthlyBill`, `BillStatusEnum` (`DRAFT`, `SUBMITTED`, `VERIFIED`, `APPROVED`), `BillSubmitPayload`, `BillActionPayload`.
+  - **REST API Endpoints (CRUD):**
+    - `GET /api/v1/bills/my-current` - Read authenticated student's current month draft bill and earnings.
+    - `POST /api/v1/bills/submit` - Create/submit monthly bill for verification (`DRAFT` -> `SUBMITTED`).
+    - `GET /api/v1/bills/pending` - Read pending bills awaiting verification/approval.
+    - `PATCH /api/v1/bills/{bill_id}/verify` - Update bill status to verified (Faculty action, `SUBMITTED` -> `VERIFIED`).
+    - `PATCH /api/v1/bills/{bill_id}/approve` - Update bill status to approved (Dept Manager action, `VERIFIED` -> `APPROVED`).
+    - `DELETE /api/v1/bills/{bill_id}` - Reject/delete bill submission with feedback.
+- **Frontend (React + TypeScript):**
+  - **Components:** `BillingPage`, `StudentBillSummary`, `FacultyBillVerification`, `ManagerFinancialApproval`.
+  - **Hooks & Services:** `useBilling`, `api.getCurrentBill()`, `api.submitBill()`, `api.verifyBill()`, `api.approveBill()`.
+
+### Feature 5: Reporting & Schedule Export Utility
+- **Backend (FastAPI):**
+  - **REST API Endpoints:**
+    - `GET /api/v1/export/report/csv` - Read/generate monthly payroll report as downloadable CSV attachment.
+    - `GET /api/v1/export/schedule/image` - Read/generate visual schedule metadata for image rendering.
+- **Frontend (React + TypeScript):**
+  - **Components:** `ExportToolbar`, `ScheduleCanvasExporter`, `PayrollReportDownloader`.
+  - **Hooks & Services:** `api.downloadPayrollCsv()`, Client-side Canvas HTML-to-Image renderer.
 
 ---
 
 ## 3-Checkpoint Work Distribution (Happy & Zaid)
 
-Both team members (**Happy** and **Zaid**) will work on **both Frontend and Backend (Full Stack)** across all 3 checkpoints, enforcing REST API best practices and full CRUD operations.
+Both team members (**Happy** and **Zaid**) will implement complete **full-stack feature slices (Backend REST API + Frontend UI)** for their assigned modules.
 
-```mermaid
-gantt
-    title SoD Management System 3-Checkpoint Plan
-    dateFormat  YYYY-MM-DD
-    section Checkpoint 1
-    Schedule Persistence & Conflict Detection Engine (Happy & Zaid) :active, cp1, 2026-08-06, 3d
-    section Checkpoint 2
-    Shift Swap Proxy Engine & Personal Dashboard (Happy & Zaid)      :cp2, 2026-08-09, 3d
-    section Checkpoint 3
-    Financial Billing Pipeline & Visual/CSV Exports (Happy & Zaid)   :cp3, 2026-08-12, 3d
-```
+| Checkpoint | Developer | Feature Assigned | Technical Deliverables |
+|---|---|---|---|
+| **Checkpoint 1** | **Happy** | **Feature 1:** Academic Schedule Engine | Backend `POST/GET/PUT/DELETE` endpoints for `/api/v1/schedule`, `ScheduleService`, Frontend `ScheduleWeeklyGrid` & `UnavailableSlotModal`. |
+| | **Zaid** | **Feature 2:** Duty Task & Conflict Detection | Backend `POST/GET/PATCH/DELETE` endpoints for `/api/v1/tasks`, schedule conflict validator, Frontend `TaskAssignmentForm` & `TaskConflictAlert`. |
+| **Checkpoint 2** | **Happy** | **Feature 3:** Shift Swap Proxy Engine | Backend `POST/GET/DELETE` endpoints for `/api/v1/tasks/swaps` & accept handler, Frontend `Dashboard` integration & `ShiftSwapFeed`. |
+| | **Zaid** | **Feature 5 & Audit:** Reporting & Swap Audit Logs | Backend `GET` endpoints for `/api/v1/export/report/csv` & `/api/v1/tasks/swaps/audit-log`, Frontend `SwapAuditTable` & `ExportToolbar`. |
+| **Checkpoint 3** | **Happy** | **Feature 4 (Part A):** Student Billing & Submission | Backend `GET /bills/my-current` & `POST /bills/submit` endpoints, Frontend `StudentBillSummary` & Submit workflow. |
+| | **Zaid** | **Feature 4 (Part B):** Faculty Verification & Manager Approval | Backend `PATCH /bills/{id}/verify` & `PATCH /bills/{id}/approve` endpoints, Frontend `FacultyBillVerification` & `ManagerFinancialApproval`. |
 
 ---
 
-### Checkpoint 1: Academic Schedule Persistence & Conflict Detection Engine
+## GitHub Collaboration & Execution Protocol
 
-* **Task 1.1 (Happy - Full Stack): Schedule Storage & Unavailable Overrides**
-  - **Backend:** Create `ScheduleService` and CRUD REST endpoints:
-    - `POST /api/v1/schedule/save` - Save student's parsed IRAS schedule.
-    - `GET /api/v1/schedule/me` - Retrieve current student's academic schedule.
-    - `GET /api/v1/schedule/student/{id}` - Manager/Faculty view of student schedule.
-    - `POST /api/v1/schedule/unavailable` - Add manual unavailable time slots (`FR-PARSER-03`).
-  - **Frontend:** Connect IRAS Parser to save schedules. Build an interactive Weekly Schedule Grid on Student Profile with a manual "Mark Unavailable" toggle.
-
-* **Task 1.2 (Zaid - Full Stack): Automated Conflict Detection Engine**
-  - **Backend:** Build automated conflict check logic cross-referencing assigned task dates/times against saved class schedules and unavailable slots. Update `POST /api/v1/tasks` to return conflict alerts or HTTP 409 status (`FR-TASK-03`, `UC-03`).
-  - **Frontend:** Update Faculty Task Assignment interface to query student availability in real-time and display warning alerts before duty creation.
-
----
-
-### Checkpoint 2: Shift Swap Proxy Engine & Personal Dashboard
-
-* **Task 2.1 (Happy - Full Stack): Shift Swap Operations & Availability Validation**
-  - **Backend:** Implement RESTful CRUD endpoints for `SwapRequest`: `GET /api/v1/tasks/swaps`, `POST /api/v1/tasks/swaps`, `POST /api/v1/tasks/swaps/{id}/accept`, `GET /api/v1/tasks/swaps/eligible`. Add validation to prevent accepting swaps during class or existing duties (`FR-PROXY-01`, `FR-PROXY-02`).
-  - **Frontend:** Connect `Dashboard.tsx` into `App.tsx` as the landing workspace. Build the interactive Shift Swap Broadcast Feed with "Accept Swap" actions.
-
-* **Task 2.2 (Zaid - Full Stack): Swap Audit Log & Dashboard Metrics**
-  - **Backend:** Create `AuditLog` service logging swap transaction history (requester, acceptor, task ID, timestamp) and add `GET /api/v1/tasks/swaps/history` (`FR-PROXY-04`).
-  - **Frontend:** Add real-time metric cards (assigned duties, pending hours, estimated earnings, open swaps) and Swap Audit History table to the Dashboard.
-
----
-
-### Checkpoint 3: Financial Billing Pipeline & Visual/CSV Exports
-
-* **Task 3.1 (Happy - Full Stack): Multi-Stage Monthly Billing Pipeline**
-  - **Backend:** Create `MonthlyBill` CRUD models and endpoints: `GET /api/v1/bills/my-current`, `POST /api/v1/bills/submit`, `GET /api/v1/bills/pending`, `POST /api/v1/bills/{id}/verify`, `POST /api/v1/bills/{id}/approve` (`FR-BILL-01` to `FR-BILL-04`).
-  - **Frontend:** Build the **Billing & Approvals** tab. Student view (earnings summary & submit bill button), Faculty view (task verification checklist & verify button).
-
-* **Task 3.2 (Zaid - Full Stack): Financial Approvals, Payroll CSV & Schedule PNG Exports**
-  - **Backend:** Add CSV export service `GET /api/v1/export/report/csv` and schedule export metadata `GET /api/v1/export/schedule/image` (`FR-EXPORT-01`, `FR-EXPORT-02`).
-  - **Frontend:** Manager View (verified bill approvals & "Download Payroll CSV" button). Add 1-Click "Export Visual Schedule PNG" feature to the Schedule/Dashboard page.
-
----
-
-## GitHub Collaboration & Branching Guidelines
-
-1. **Issue Creation:** First, create a detailed GitHub issue (`.github/ISSUES/#issue_num-description.md` and GitHub issue) outlining objectives, acceptance criteria, and task checklist.
-2. **Branch Naming:** Create a feature branch starting with `#issue_num` under username namespace: `#issue_num-username-description` or `username/#issue_num-description` (e.g., `#38-happy-schedule-persistence`).
-3. **Commit Convention:** Prefix commits with the issue number (e.g. `[#38] Add schedule CRUD REST endpoints`).
-4. **Pull Request (PR):** Submit a detailed PR referencing the issue (e.g. `Closes #38`).
-5. **Merge Permission:** BEFORE merging any PR to the `dev` branch, **ASK FOR EXPLICIT PERMISSION FROM USER**.
-6. **Cleanup:** Once merged to `dev`, close the issue and delete the feature branch.
+1. **Issue Creation:** For every feature task, write the issue markdown file `.github/ISSUES/#issue_num-feature-name.md` detailing API endpoints, schemas, and UI components.
+2. **Branch Creation:** Create branch matching naming pattern: `username/#issue_num-feature-name` (e.g. `happy/#38-academic-schedule-engine`).
+3. **Commit Standard:** Commit with issue prefix `[#38] Add POST /api/v1/schedule endpoint and Pydantic schemas`.
+4. **Pull Request (PR):** Open a PR targeting `dev` branch with summary of endpoints, schemas, and UI components created.
+5. **Permission Gate:** Ask the user for explicit permission before merging PR to `dev`.
+6. **Issue Closure & Branch Cleanup:** Merge PR to `dev`, mark issue closed, and delete local and remote feature branches.
