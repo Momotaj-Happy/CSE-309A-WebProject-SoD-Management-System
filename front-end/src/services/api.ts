@@ -502,7 +502,7 @@ export const api = new ApiClient();
 const SCHEDULE_API_URL = 'http://localhost:8000/api/schedule';
 
 export async function parseScheduleApi(rawText: string): Promise<ScheduleResponse> {
-  const sanitizedText = rawText.replace(/\r/g, '').replace(/[\x00-\x09\x0B-\x1F\x7F]/g, ' ');
+  const sanitizedText = rawText.replace(/\r/g, '').replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/g, '');
   const response = await fetch(`${SCHEDULE_API_URL}/parse`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

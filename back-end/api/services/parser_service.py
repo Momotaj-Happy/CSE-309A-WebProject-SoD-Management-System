@@ -25,7 +25,6 @@ def normalize_days(raw_days: str) -> str:
         if std_day in clean_days:
             return clean_days
 
-    # Otherwise, map single-letter codes
     mapped_days = []
     for char in clean_days:
         if char in IRAS_DAY_MAP:
@@ -37,7 +36,6 @@ def normalize_days(raw_days: str) -> str:
 
 
 class ParserService:
-    # Pattern 1: Handles tab/space separated copies directly from IRAS web tables
     TABBED_PATTERN = re.compile(
         r'(?P<code>[A-Z]{2,5}\d{3}[A-Z]*)'
         r'[\t\s]+'
@@ -52,7 +50,6 @@ class ParserService:
         r'(?P<end_time>\d{2}:\d{2})'
     )
 
-    # Pattern 2: Fallback for condensed raw text with no spaces/tabs
     CONDENSED_PATTERN = re.compile(
         r'(?P<code>[A-Z]{2,5}\d{3}[A-Z]*)'
         r'(?P<name>[^:]+)'
@@ -65,31 +62,62 @@ class ParserService:
 
     @classmethod
     def parse_raw_text(cls, raw_text: str) -> List[CourseItem]:
-        cleaned_text = raw_text
+        cleaned_text = raw_text.replace('\r', '')
         headers = ["Code", "Name", "Sec", "Room", "Time", "Attendance*", "Attendance %", "Grade"]
         for header in headers:
             cleaned_text = cleaned_text.replace(header, "")
-        cleaned_text = cleaned_text.strip()
-
-        matches = list(cls.TABBED_PATTERN.finditer(cleaned_text))
-        if not matches:
-            matches = list(cls.CONDENSED_PATTERN.finditer(cleaned_text))
 
         courses: List[CourseItem] = []
-        for match in matches:
-            data = match.groupdict()
-            raw_d = data['days'].strip()
-            norm_d = normalize_days(raw_d)
 
-            courses.append(
-                CourseItem(
-                    id=data['code'].strip(),
-                    name=data['name'].strip(),
-                    section=data['sec'].strip(),
-                    room=data['room'].strip(),
-                    days=norm_d,
-                    time=f"{data['start_time']} - {data['end_time']}"
+        # Strategy 1: Tab-separated line parsing (directly copied from IRAS table)
+        lines = [line.strip() for line in cleaned_text.split('\n') if line.strip()]
+        for line in lines:
+            parts = [p.strip() for p in line.split('\t') if p.strip()]
+            if parts and re.match(r'^[A-Z]{2,5}\d{3}[A-Z]*$', parts[0]):
+                if len(parts) >= 5:
+                    code = parts[0]
+                    name = parts[1]
+                    sec = parts[2]
+                    room = parts[3]
+                    time_raw = parts[4]
+                    if ':' in time_raw:
+                        days_raw, time_range = time_raw.split(':', 1)
+                    else:
+                        days_raw, time_range = 'MON', time_raw
+
+                    # Standardize time format: e.g. 11:20-12:50 -> 11:20 - 12:50
+                    time_str = time_range.replace('-', ' - ').replace('  ', ' ')
+                    courses.append(
+                        CourseItem(
+                            id=code,
+                            name=name,
+                            section=sec,
+                            room=room,
+                            days=normalize_days(days_raw),
+                            time=time_str
+                        )
+                    )
+
+        # Strategy 2: Regex matching if tab-separated line parsing returned nothing
+        if not courses:
+            matches = list(cls.TABBED_PATTERN.finditer(cleaned_text))
+            if not matches:
+                matches = list(cls.CONDENSED_PATTERN.finditer(cleaned_text))
+
+            for match in matches:
+                data = match.groupdict()
+                raw_d = data['days'].strip()
+                norm_d = normalize_days(raw_d)
+
+                courses.append(
+                    CourseItem(
+                        id=data['code'].strip(),
+                        name=data['name'].strip(),
+                        section=data['sec'].strip(),
+                        room=data['room'].strip(),
+                        days=norm_d,
+                        time=f"{data['start_time']} - {data['end_time']}"
+                    )
                 )
-            )
 
         return courses
