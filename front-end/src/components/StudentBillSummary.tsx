@@ -146,10 +146,10 @@ export const StudentBillSummary: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium">
-                    {bill.items.map((item: any) => (
-                      <tr key={item.task_id} className="hover:bg-slate-50/80 transition-colors">
+                    {bill.items.map((item: any, idx: number) => (
+                      <tr key={item.task_id || idx} className="hover:bg-slate-50/80 transition-colors">
                         <td className="py-2.5 px-3 font-semibold text-slate-900">{item.title}</td>
-                        <td className="py-2.5 px-3 text-slate-500 font-mono">{item.scheduled_date}</td>
+                        <td className="py-2.5 px-3 text-slate-500 font-mono">{item.scheduled_date || item.date}</td>
                         <td className="py-2.5 px-3 text-slate-700">{item.hours} hrs</td>
                         <td className="py-2.5 px-3 text-slate-700">${item.hourly_rate}/hr</td>
                         <td className="py-2.5 px-3 text-right font-bold text-slate-900">

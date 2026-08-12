@@ -1,5 +1,5 @@
 from enum import Enum
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
 
 
@@ -24,17 +24,24 @@ class MonthlyBillResponse(BaseModel):
     bill_id: str
     student_id: str
     student_name: str
-    dept_id: str
+    dept_id: Optional[str] = "SOD-2024-001"
     month_year: str
     total_hours: float
     total_amount: float
     status: BillStatusEnum
-    items: List[BillItem]
+    items: List[BillItem] = []
     submitted_at: Optional[str] = None
     verified_at: Optional[str] = None
     approved_at: Optional[str] = None
     rejection_reason: Optional[str] = None
+    notes: Optional[str] = None
 
 
 class BillSubmitPayload(BaseModel):
-    month_year: str  # e.g., "2026-07"
+    month_year: str = Field("2026-07", description="Month and year, e.g. 2026-07")
+    notes: Optional[str] = Field(None, description="Optional notes for faculty review")
+
+
+class BillActionPayload(BaseModel):
+    action: str = Field(..., description="Action: VERIFY, APPROVE, or REJECT")
+    notes: Optional[str] = Field(None, description="Action feedback or signoff notes")
