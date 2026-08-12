@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import type { UserRole } from '../types/user';
-import { LogOut, User as UserIcon, Building, Layers, Calendar, Clock, UserCheck } from 'lucide-react';
+import { LogOut, User as UserIcon, Building, Layers, Calendar, Clock, UserCheck, DollarSign } from 'lucide-react';
 
 interface NavbarProps {
   activeTab: string;
@@ -76,6 +76,21 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
               >
                 <Clock className="w-3.5 h-3.5" />
                 My Duty Timetable
+              </button>
+            )}
+
+            {/* Student Monthly Billing */}
+            {isStudent && (
+              <button
+                onClick={() => setActiveTab('billing')}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  activeTab === 'billing'
+                    ? 'bg-white text-slate-900 shadow-xs border border-slate-200'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                }`}
+              >
+                <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
+                Monthly Billing
               </button>
             )}
 

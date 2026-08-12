@@ -584,10 +584,9 @@ class ApiClient {
     }
   }
 
-  // Monthly Financial Billing API
-  async getCurrentBill(): Promise<any> {
+  async getCurrentBill(monthYear: string = '2026-07'): Promise<any> {
     try {
-      const response = await fetch(`${API_BASE_URL}/bills/my-current`, {
+      const response = await fetch(`${API_BASE_URL}/bills/my-current?month_year=${monthYear}`, {
         method: 'GET',
         headers: this.getHeaders()
       });
@@ -595,50 +594,79 @@ class ApiClient {
       return await response.json();
     } catch (err: any) {
       return {
-        bill_id: 'bill-mock-1',
+        bill_id: `bill-${monthYear}-mock1`,
         student_id: 'mock-1',
         student_name: 'Momotaj Happy',
+        dept_id: 'SOD-2024-001',
+        month_year: monthYear,
         month: 'July',
         year: 2026,
-        total_hours: 3.0,
-        total_amount: 66.0,
-        status: 'SUBMITTED',
+        total_hours: 6.0,
+        total_amount: 120.0,
+        status: 'DRAFT',
         items: [
           {
             task_id: 'task-3',
             title: 'Quantum Research Data Analysis',
+            scheduled_date: '2026-07-26',
             date: '2026-07-26',
             hours: 3.0,
             hourly_rate: 22.0,
             subtotal: 66.0
+          },
+          {
+            task_id: 'task-demo-completed',
+            title: 'Physics 101 Lab Assistant Duty',
+            scheduled_date: '2026-07-20',
+            date: '2026-07-20',
+            hours: 3.0,
+            hourly_rate: 18.0,
+            subtotal: 54.0
           }
         ],
-        notes: 'Submitted for faculty review.'
+        submitted_at: null,
+        verified_at: null,
+        approved_at: null
       };
     }
   }
 
-  async submitBill(month: string, year: number, notes?: string): Promise<any> {
+  async submitBill(monthYear: string = '2026-07', notes?: string): Promise<any> {
     try {
       const response = await fetch(`${API_BASE_URL}/bills/submit`, {
         method: 'POST',
         headers: this.getHeaders(),
-        body: JSON.stringify({ month, year, notes })
+        body: JSON.stringify({ month_year: monthYear, notes })
       });
-      if (!response.ok) throw new Error('Failed to submit monthly bill');
+      if (!response.ok) throw new Error('Failed to submit bill');
       return await response.json();
     } catch (err: any) {
       return {
-        bill_id: `bill-${Date.now()}`,
+        bill_id: `bill-${monthYear}-mock1`,
         student_id: 'mock-1',
         student_name: 'Momotaj Happy',
-        month,
-        year,
-        total_hours: 3.0,
-        total_amount: 66.0,
+        dept_id: 'SOD-2024-001',
+        month_year: monthYear,
+        total_hours: 6.0,
+        total_amount: 120.0,
         status: 'SUBMITTED',
+        items: [],
+        submitted_at: new Date().toISOString(),
         notes
       };
+    }
+  }
+
+  async getStudentBillHistory(studentId: string): Promise<any[]> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/bills/student/${studentId}`, {
+        method: 'GET',
+        headers: this.getHeaders()
+      });
+      if (!response.ok) throw new Error('Failed to fetch bill history');
+      return await response.json();
+    } catch (err: any) {
+      return [];
     }
   }
 
