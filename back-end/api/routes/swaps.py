@@ -28,6 +28,7 @@ def create_shift_swap(
 
 
 @router.get("", response_model=List[ShiftSwapResponse])
+@router.get("/", response_model=List[ShiftSwapResponse])
 def list_shift_swaps(status: Optional[str] = None):
     """Retrieves all open or filtered shift swap requests."""
     return SwapService.list_swaps(status_filter=status)

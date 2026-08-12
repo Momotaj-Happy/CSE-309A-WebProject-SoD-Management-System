@@ -26,6 +26,30 @@ def create_task(
     return TaskService.create_task(task_in)
 
 
+@router.get("/{task_id}", response_model=DutyTaskResponse)
+def get_task(
+    task_id: str,
+    payload: dict = Depends(get_current_token_payload)
+):
+    """Fetches details for a single duty task."""
+    task = TaskService.get_task_by_id(task_id)
+    if not task:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+    return task
+
+
+@router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_task(
+    task_id: str,
+    payload: dict = Depends(get_current_token_payload)
+):
+    """Deletes or cancels an assigned duty task."""
+    success = TaskService.delete_task(task_id)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+    return None
+
+
 @router.patch("/{task_id}/status", response_model=DutyTaskResponse)
 def update_task_status(
     task_id: str,
