@@ -96,6 +96,51 @@ _init_demo_tasks()
 
 class TaskService:
     @staticmethod
+    def _parse_time_minutes(t_str: str) -> int:
+        parts = t_str.strip().split(":")
+        return int(parts[0]) * 60 + int(parts[1])
+
+    @staticmethod
+    def check_schedule_conflict(student_id: Optional[str], scheduled_date: str, start_time: str, end_time: str) -> Optional[str]:
+        if not student_id:
+            return None
+
+        from api.services.schedule_service import ScheduleService
+        schedule = ScheduleService.get_schedule(student_id)
+
+        try:
+            dt = datetime.strptime(scheduled_date, "%Y-%m-%d")
+            day_map = {0: "MON", 1: "TUE", 2: "WED", 3: "THU", 4: "FRI", 5: "SAT", 6: "SUN"}
+            task_day = day_map.get(dt.weekday(), "")
+        except Exception:
+            task_day = ""
+
+        task_start_m = TaskService._parse_time_minutes(start_time)
+        task_end_m = TaskService._parse_time_minutes(end_time)
+
+        # Check course schedule overlap
+        for course in schedule.courses:
+            course_days = [d.strip().upper() for d in course.days.split(",")]
+            if task_day in course_days:
+                if "-" in course.time:
+                    c_start_str, c_end_str = course.time.split("-")
+                    c_start_m = TaskService._parse_time_minutes(c_start_str)
+                    c_end_m = TaskService._parse_time_minutes(c_end_str)
+                    if (task_start_m < c_end_m) and (task_end_m > c_start_m):
+                        return f"Schedule Conflict: Task time ({start_time}-{end_time}) overlaps with student lecture '{course.name}' ({course.time}) on {task_day}."
+
+        # Check custom unavailable slots overlap
+        if schedule.unavailable_slots:
+            for slot in schedule.unavailable_slots:
+                if slot.day.upper().strip() == task_day:
+                    u_start_m = TaskService._parse_time_minutes(slot.start_time)
+                    u_end_m = TaskService._parse_time_minutes(slot.end_time)
+                    if (task_start_m < u_end_m) and (task_end_m > u_start_m):
+                        return f"Schedule Conflict: Task time ({start_time}-{end_time}) overlaps with custom marked unavailable window '{slot.note}' ({slot.start_time}-{slot.end_time}) on {task_day}."
+
+        return None
+
+    @staticmethod
     def get_all_tasks(student_id: Optional[str] = None, status: Optional[str] = None) -> List[DutyTaskResponse]:
         results = []
         for t in _TASKS_DB.values():
@@ -107,7 +152,23 @@ class TaskService:
         return results
 
     @staticmethod
+    def get_task_by_id(task_id: str) -> Optional[DutyTaskResponse]:
+        if task_id in _TASKS_DB:
+            return DutyTaskResponse(**_TASKS_DB[task_id])
+        return None
+
+    @staticmethod
     def create_task(task_in: DutyTaskCreate) -> DutyTaskResponse:
+        conflict_msg = TaskService.check_schedule_conflict(
+            task_in.student_id,
+            task_in.scheduled_date,
+            task_in.start_time,
+            task_in.end_time
+        )
+        if conflict_msg:
+            from fastapi import HTTPException, status
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=conflict_msg)
+
         task_id = str(uuid.uuid4())
         created_at = datetime.now(timezone.utc).isoformat()
         task_entry = {
@@ -119,6 +180,13 @@ class TaskService:
         }
         _TASKS_DB[task_id] = task_entry
         return DutyTaskResponse(**task_entry)
+
+    @staticmethod
+    def delete_task(task_id: str) -> bool:
+        if task_id in _TASKS_DB:
+            del _TASKS_DB[task_id]
+            return True
+        return False
 
     @staticmethod
     def update_task_status(task_id: str, new_status: TaskStatus, notes: Optional[str] = None) -> Optional[DutyTaskResponse]:
