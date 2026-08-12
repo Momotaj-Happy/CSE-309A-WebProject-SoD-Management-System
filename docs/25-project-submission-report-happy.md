@@ -21,37 +21,32 @@
 
 ## 1. Project Overview
 
-The **Departmental Student on Duty (SoD) Management System** is a full-stack web platform engineered for the Department of Physical Science at Independent University, Bangladesh (IUB). The system automates and streamlines student duty tracking, academic schedule parsing, shift proxy/swap workflows, and monthly financial bill processing.
+The **Departmental Student on Duty (SoD) Management System** is a full-stack web platform engineered for the Department of Physical Science at Independent University, Bangladesh (IUB). The system automates student duty tracking, academic class schedule parsing, shift proxy/swap workflows, and monthly financial bill processing.
 
 ### Problem Solved
-Previously, departmental student duty management relied on manual paper rosters, untracked peer-to-peer shift swaps, and error-prone monthly paper billing. This resulted in scheduling conflicts with academic lectures, lack of visibility into duty completions, delays in financial approvals, and administrative overhead. The SoD Management System replaces these manual processes with an intelligent orchestration engine featuring automated schedule conflict validation, role-based access control (RBAC), and a multi-tier financial approval pipeline (Student → Faculty → Department Manager).
+Previously, departmental student duty management relied on manual paper rosters, untracked peer-to-peer shift swaps, and error-prone monthly paper billing. This resulted in scheduling conflicts with academic lectures, lack of visibility into duty completions, and administrative overhead. The SoD Management System replaces these manual processes with an intelligent orchestration platform featuring automated schedule parsing, availability management, peer-to-peer shift proxy swaps, and automated student monthly billing submissions.
 
-### Main Features
-1. **Authentication & Role-Based Access Control (RBAC):** Secure JWT authentication supporting `STUDENT`, `FACULTY`, `LAB_MGR`, and `DEPT_MGR` roles with customized interfaces and route protection guards.
-2. **IRAS Academic Schedule Parser Engine:** Enables students to copy-paste raw class schedules from the IRAS web portal, automatically parsing and mapping lecture slots onto an interactive 7-day weekly timetable grid.
-3. **Academic Availability & Schedule Engine:** Full REST CRUD management of student course schedules and custom marked unavailable time slots.
-4. **Duty Task Assignment & Conflict Detection Engine:** Allows faculty and managers to create duty tasks while automatically validating incoming task times against student class schedules and custom unavailable windows (blocking overlapping assignments with HTTP 409 Conflict).
-5. **Shift Swap Proxy Engine & Audit Trail:** Provides a peer-to-peer shift swap feed where students can offer, request, or accept duty proxy shifts with complete immutable audit logs.
-6. **Student Monthly Billing & Multi-Tier Financial Approvals:** Automatically aggregates completed duty task hours into monthly billing summaries for student submission, followed by faculty verification and department manager financial approval.
-7. **Reporting & Export Utilities:** Offers administrative export toolbar for generating CSV reports of duty completions, shift swaps, and monthly bill statements.
-
-### Overall Team Contribution
-The project was developed collaboratively by **Momotaj Happy** and **Zaid Fahad**. Both team members implemented complete full-stack feature slices (FastAPI backend + React frontend) divided across three structured development checkpoints.
+### Core Modules Implemented (My Scope)
+1. **IRAS Academic Schedule Parser Engine:** Enables students to copy-paste raw class schedules from the IRAS web portal, automatically parsing and mapping lecture slots onto an interactive 7-day weekly timetable grid.
+2. **Academic Availability & Schedule Engine:** Full REST CRUD management of student course schedules and custom marked unavailable time slots.
+3. **Shift Swap Proxy Engine & Audit Trail:** Provides a peer-to-peer shift swap feed where students can offer, request, or accept duty proxy shifts with complete immutable audit logs.
+4. **Student Monthly Billing & Bill Submission:** Automatically aggregates completed duty task hours into monthly billing summaries for student submission.
+5. **Frontend UI Architecture & Router Setup:** Initialized the React + TypeScript + Vite project structure (`front-end/`), configured Tailwind CSS design system tokens, created navigation layouts, and integrated lucide-react iconography.
 
 ---
 
-## 2. My Contributions
+## 2. My Technical Contributions
 
-As a core full-stack developer and repository owner on this project, my (**Momotaj Happy**) individual technical contributions spanned technical architecture planning, IRAS parser engine development, academic schedule availability management, shift swap proxy engine implementation, student monthly billing submission, bug resolution, and unit test automation:
+My (**Momotaj Happy**) individual technical contributions spanned full-stack development (FastAPI backend + React frontend), technical feature planning, parser engine engineering, availability management, shift swap proxy workflows, student monthly billing submission, bug resolution, and unit test automation:
 
 ### Technical Architecture & Development Planning
-* **Work Distribution Specifications:** Primary author of `docs/23-work-distribution.md`, establishing the 3-checkpoint engineering plan, Pydantic schemas, REST API CRUD specifications, and React component architecture for both team members.
+* **Work Distribution Specifications:** Primary author of `docs/23-work-distribution.md`, establishing the 3-checkpoint engineering plan, Pydantic schemas, REST API CRUD specifications, and React component architecture.
 * **Requirements & Design Documentation:** Lead contributor to initial project discovery, problem statements, and requirements documents (`docs/01-project-overview.md`, `docs/05-interviews.md`, `docs/06-surveys.md`, `docs/08-prd.md`, `docs/13-functional-requirements.md`).
 * **Frontend Setup & UI Architecture:** Initialized the React + TypeScript + Vite project structure (`front-end/`), configured Tailwind CSS design system tokens, created navigation layouts, and integrated lucide-react iconography.
 
 ### Module 1: IRAS Schedule Parser & Academic Schedule Engine (Issue #34, Issue #38 / PR #35, PR #39)
 * **Backend Development (FastAPI):**
-  - Built `ParserService` in `back-end/api/services/parser_service.py` featuring a multi-line `LINE_PATTERN` scanner, tab-separated line parser, and condensed regex fallbacks to extract course code, course title, section, room, days, and time slots from raw copy-pasted IRAS table text.
+  - Engineered `ParserService` in `back-end/api/services/parser_service.py` featuring a multi-line `LINE_PATTERN` scanner, tab-separated line parser, and condensed regex fallbacks to extract course code, course title, section, room, days, and time slots from raw copy-pasted IRAS table text.
   - Implemented IRAS day code normalization converting single-letter codes (`S`→`SUN`, `M`→`MON`, `T`→`TUE`, `W`→`WED`, `R`→`THU`, `F`→`FRI`, `A`→`SAT`) and combined day strings (`ST`, `MW`, `AR`) into standardized comma-separated day representations.
   - Built `ScheduleService` in `back-end/api/services/schedule_service.py` managing persistent schedule data storage (`_SCHEDULES_DB`), schedule retrieval, course slot updates, and custom unavailable slot management.
   - Developed full REST CRUD endpoints in `back-end/api/routes/schedule.py`:
@@ -88,7 +83,7 @@ As a core full-stack developer and repository owner on this project, my (**Momot
   - Built `SwapAuditTable.tsx`: Table rendering immutable shift swap audit trails with real-time search filtering.
   - Updated `Dashboard.tsx`: Integrated shift swap feed, audit log section, and shift swap request modal dialog (`swapModalTask`).
 
-### Module 3: Student Monthly Billing & Submission (Issue #42 - Part A)
+### Module 3: Student Monthly Billing & Submission (Issue #42)
 * **Backend Development (FastAPI):**
   - Designed Pydantic models in `back-end/api/models/billing.py`: `BillStatusEnum` (`DRAFT`, `SUBMITTED`, `VERIFIED`, `APPROVED`, `REJECTED`), `BillItem`, `MonthlyBillResponse`, `BillSubmitPayload`.
   - Developed `BillingService` in `back-end/api/services/billing_service.py` computing billable hours and financial amounts for `COMPLETED` duty tasks within the given month/year and handling draft submission (`DRAFT` → `SUBMITTED`).
@@ -129,7 +124,7 @@ As a core full-stack developer and repository owner on this project, my (**Momot
 
 ### Engineering Practices & Git Workflow
 * **SDLC & Requirements Engineering:** Gained hands-on experience authoring production-grade software documentation including SRS, TDD, ERD, and API contracts.
-* **GitHub Collaboration Protocol:** Practiced team software development using issue tracking (`.github/ISSUES/`), feature branch conventions (`username/#issue_num-feature-name`), structured commit messages, pull requests targeting `dev`, and strict code review gates.
+* **GitHub Collaboration Protocol:** Practiced software development using issue tracking (`.github/ISSUES/`), feature branch conventions (`username/#issue_num-feature-name`), structured commit messages, pull requests targeting `dev`, and strict code review gates.
 * **Quality Assurance & Testing:** Enhanced proficiency in writing automated unit tests (`pytest`), validating API response contracts, and performing full-stack debugging.
 
 ---
