@@ -27,9 +27,9 @@ The **Departmental Student on Duty (SoD) Management System** is a full-stack web
 Previously, departmental student duty management relied on manual paper rosters, untracked peer-to-peer shift swaps, and error-prone monthly paper billing. This resulted in scheduling conflicts with academic lectures, lack of visibility into duty completions, delays in financial approvals, and administrative overhead. The SoD Management System replaces these manual processes with an intelligent orchestration engine featuring automated schedule conflict validation, role-based access control (RBAC), and a multi-tier financial approval pipeline (Student → Faculty → Department Manager).
 
 ### Main Features
-1. **Authentication & Role-Based Access Control (RBAC):** Secure JWT authentication supporting `STUDENT`, `FACULTY`, and `MANAGER` roles with customized interfaces and route protection.
-2. **IRAS Academic Schedule Parser Engine:** Enables students to upload or copy-paste raw class schedules from the IRAS web portal, automatically parsing and mapping lecture slots onto an interactive 7-day weekly timetable grid.
-3. **Academic Availability & Schedule Management:** Full CRUD management of parsed student course schedules and custom marked unavailable time slots.
+1. **Authentication & Role-Based Access Control (RBAC):** Secure JWT authentication supporting `STUDENT`, `FACULTY`, `LAB_MGR`, and `DEPT_MGR` roles with customized interfaces and route protection guards.
+2. **IRAS Academic Schedule Parser Engine:** Enables students to copy-paste raw class schedules from the IRAS web portal, automatically parsing and mapping lecture slots onto an interactive 7-day weekly timetable grid.
+3. **Academic Availability & Schedule Engine:** Full REST CRUD management of student course schedules and custom marked unavailable time slots.
 4. **Duty Task Assignment & Conflict Detection Engine:** Allows faculty and managers to create duty tasks while automatically validating incoming task times against student class schedules and custom unavailable windows (blocking overlapping assignments with HTTP 409 Conflict).
 5. **Shift Swap Proxy Engine & Audit Trail:** Provides a peer-to-peer shift swap feed where students can offer, request, or accept duty proxy shifts with complete immutable audit logs.
 6. **Student Monthly Billing & Multi-Tier Financial Approvals:** Automatically aggregates completed duty task hours into monthly billing summaries for student submission, followed by faculty verification and department manager financial approval.
@@ -42,58 +42,65 @@ The project was developed collaboratively by **Momotaj Happy** and **Zaid Fahad*
 
 ## 2. My Contributions
 
-As a core developer on this project, my (**Momotaj Happy**) individual technical contributions spanned technical feature planning, IRAS parser engine development, academic schedule availability management, shift swap proxy engine implementation, student monthly billing submission, and unit test automation:
+As a core full-stack developer and repository owner on this project, my (**Momotaj Happy**) individual technical contributions spanned technical architecture planning, IRAS parser engine development, academic schedule availability management, shift swap proxy engine implementation, student monthly billing submission, bug resolution, and unit test automation:
 
-### Technical Planning & Requirements Architecture
-* **Work Distribution & Technical Feature Specifications:** Author of `docs/23-work-distribution.md`, establishing the 3-checkpoint technical breakdown, Pydantic schemas, REST API CRUD specifications, and React component architecture for both team members.
-* **Requirements & Design Documentation:** Co-authored initial system specification documents including `docs/01-project-overview.md`, `docs/08-prd.md`, and `docs/13-functional-requirements.md`.
+### Technical Architecture & Development Planning
+* **Work Distribution Specifications:** Primary author of `docs/23-work-distribution.md`, establishing the 3-checkpoint engineering plan, Pydantic schemas, REST API CRUD specifications, and React component architecture for both team members.
+* **Requirements & Design Documentation:** Lead contributor to initial project discovery, problem statements, and requirements documents (`docs/01-project-overview.md`, `docs/05-interviews.md`, `docs/06-surveys.md`, `docs/08-prd.md`, `docs/13-functional-requirements.md`).
+* **Frontend Setup & UI Architecture:** Initialized the React + TypeScript + Vite project structure (`front-end/`), configured Tailwind CSS design system tokens, created navigation layouts, and integrated lucide-react iconography.
 
-### Module 1: IRAS Schedule Parser & Availability Engine (Issue #34, Issue #38 / PR #35, PR #39)
-* **Backend (FastAPI):**
-  - Engineered `ParserService` in `back-end/api/services/parser_service.py` featuring a multi-line `LINE_PATTERN` scanner, tab-separated line parsing, and condensed regex strategies to parse raw copy-pasted IRAS academic schedules into structured course slots.
-  - Implemented IRAS single-letter day code normalization (`S`→`SUN`, `M`→`MON`, `T`→`TUE`, `W`→`WED`, `R`→`THU`, `F`→`FRI`, `A`→`SAT`, and multi-day codes `ST`, `MW`, `AR`).
-  - Developed `ScheduleService` in `back-end/api/services/schedule_service.py` providing full CRUD operations for student schedules and custom unavailable slots.
-  - Implemented REST CRUD endpoints in `back-end/api/routes/schedule.py`:
-    - `POST /api/v1/schedule/parse` (Parse raw schedule text)
+### Module 1: IRAS Schedule Parser & Academic Schedule Engine (Issue #34, Issue #38 / PR #35, PR #39)
+* **Backend Development (FastAPI):**
+  - Built `ParserService` in `back-end/api/services/parser_service.py` featuring a multi-line `LINE_PATTERN` scanner, tab-separated line parser, and condensed regex fallbacks to extract course code, course title, section, room, days, and time slots from raw copy-pasted IRAS table text.
+  - Implemented IRAS day code normalization converting single-letter codes (`S`→`SUN`, `M`→`MON`, `T`→`TUE`, `W`→`WED`, `R`→`THU`, `F`→`FRI`, `A`→`SAT`) and combined day strings (`ST`, `MW`, `AR`) into standardized comma-separated day representations.
+  - Built `ScheduleService` in `back-end/api/services/schedule_service.py` managing persistent schedule data storage (`_SCHEDULES_DB`), schedule retrieval, course slot updates, and custom unavailable slot management.
+  - Developed full REST CRUD endpoints in `back-end/api/routes/schedule.py`:
+    - `POST /api/v1/schedule/parse` (Parse raw copy-pasted IRAS schedule text)
     - `POST /api/v1/schedule/save` (201 Created - Save/persist student schedule)
-    - `GET /api/v1/schedule/me` (200 OK - Read logged-in student schedule)
-    - `GET /api/v1/schedule/student/{student_id}` (200 OK - Read student schedule by ID for Faculty/Managers)
+    - `GET /api/v1/schedule/me` (200 OK - Read authenticated student's schedule)
+    - `GET /api/v1/schedule/student/{student_id}` (200 OK - Read schedule by student ID for Faculty/Managers)
     - `PUT /api/v1/schedule/courses/{course_id}` (200 OK - Update specific course slot attributes)
     - `DELETE /api/v1/schedule/courses/{course_id}` (204 No Content - Delete course slot entry)
-    - `POST /api/v1/schedule/unavailable` (201 Created - Add custom unavailable slot)
-    - `DELETE /api/v1/schedule/unavailable/{slot_id}` (204 No Content - Delete unavailable slot)
-  - Authored automated unit test suite `back-end/tests/test_schedule_engine.py`.
-* **Frontend (React + TypeScript):**
-  - Developed `SchedulePage.tsx` with "Save Schedule to Profile" action, feedback toast alerts, and raw JSON inspector.
-  - Developed `ScheduleWeeklyGrid.tsx` rendering an interactive 7-day timetable grid for course lectures and unavailable slots, supporting day code mapping (`DAY_CODE_MAP`) and inline deletion controls.
-  - Developed `UnavailableSlotModal.tsx` for marking custom unavailable time windows.
-  - Integrated `ScheduleWeeklyGrid` into `UserProfileCard.tsx`.
+    - `POST /api/v1/schedule/unavailable` (201 Created - Create custom unavailable slot)
+    - `DELETE /api/v1/schedule/unavailable/{slot_id}` (204 No Content - Delete custom unavailable slot)
+  - Authored automated unit test suite `back-end/tests/test_schedule_engine.py` validating parsing logic and CRUD endpoints.
+* **Frontend Development (React + TypeScript):**
+  - Created `SchedulePage.tsx` featuring raw text area input, real-time parsing triggers, "Save Schedule to Profile" action, feedback toast alerts, and raw JSON preview.
+  - Created `ScheduleWeeklyGrid.tsx` rendering an interactive 7-day timetable grid for course lectures and unavailable slots, featuring day code mapping (`DAY_CODE_MAP`) and inline deletion controls.
+  - Created `UnavailableSlotModal.tsx` allowing students to mark custom unavailable windows.
+  - Integrated `ScheduleWeeklyGrid` into `UserProfileCard.tsx` for profile schedule synchronization.
 
 ### Module 2: Shift Swap Proxy Engine & Audit Logging (Issue #41 / PR #45)
-* **Backend (FastAPI):**
-  - Created Pydantic models in `back-end/api/models/swap.py`: `SwapStatusEnum` (`OPEN`, `ACCEPTED`, `CANCELLED`), `SwapRequestCreate`, `ShiftSwapResponse`, `AuditLogEntry`.
-  - Built `SwapService` in `back-end/api/services/swap_service.py` supporting shift swap broadcasting, open swap querying, shift acceptance (transferring task assignment to acceptor), request cancellation/withdrawal, and immutable audit log recording (`_AUDIT_LOG_DB`).
+* **Backend Development (FastAPI):**
+  - Designed Pydantic models in `back-end/api/models/swap.py`: `SwapStatusEnum` (`OPEN`, `ACCEPTED`, `CANCELLED`), `SwapRequestCreate`, `ShiftSwapResponse`, `AuditLogEntry`.
+  - Developed `SwapService` in `back-end/api/services/swap_service.py` supporting shift swap broadcasting, open swap querying, peer swap acceptance (transferring task `student_id` ownership), request cancellation/withdrawal, and immutable audit trail recording (`_AUDIT_LOG_DB`).
   - Implemented REST CRUD endpoints in `back-end/api/routes/swaps.py`:
     - `POST /api/v1/tasks/swaps` (201 Created - Broadcast shift swap request)
     - `GET /api/v1/tasks/swaps` (200 OK - Read open swap requests)
     - `GET /api/v1/tasks/swaps/audit-log` (200 OK - Read shift swap transaction audit log entries)
     - `GET /api/v1/tasks/swaps/{swap_id}` (200 OK - Read single swap request details)
-    - `POST /api/v1/tasks/swaps/{swap_id}/accept` (200 OK - Accept swap request)
+    - `POST /api/v1/tasks/swaps/{swap_id}/accept` (200 OK - Accept peer swap request)
     - `DELETE /api/v1/tasks/swaps/{swap_id}` (204 No Content - Cancel/withdraw swap request)
-  - Mounted `swaps.router` in `back-end/main.py`.
+  - Mounted `swaps.router` under `/api/v1` in `back-end/main.py`.
   - Authored automated unit test suite `back-end/tests/test_shift_swap_engine.py`.
-* **Frontend (React + TypeScript):**
-  - Developed `ShiftSwapFeed.tsx`: Live feed of open shift swap broadcasts with interactive "Accept Shift" and "Withdraw Request" controls.
-  - Developed `SwapAuditTable.tsx`: Table rendering immutable shift swap audit trails with search filtering.
-  - Integrated swap feed and audit log table into `Dashboard.tsx` with broadcast modal dialog (`swapModalTask`).
+* **Frontend Development (React + TypeScript):**
+  - Built `ShiftSwapFeed.tsx`: Live feed displaying open shift swap broadcasts with interactive "Accept Shift" and "Withdraw Request" controls.
+  - Built `SwapAuditTable.tsx`: Table rendering immutable shift swap audit trails with real-time search filtering.
+  - Updated `Dashboard.tsx`: Integrated shift swap feed, audit log section, and shift swap request modal dialog (`swapModalTask`).
 
-### Module 3: Student Monthly Billing & Bill Submission (Issue #42)
-* **Backend (FastAPI):**
-  - Created Pydantic models in `back-end/api/models/billing.py`: `BillStatusEnum`, `BillItem`, `MonthlyBillResponse`, `BillSubmitPayload`.
-  - Developed `BillingService` computing billable hours and financial amounts for `COMPLETED` duty tasks within the given month/year and handling draft submission (`DRAFT` → `SUBMITTED`).
-  - REST endpoints: `GET /api/v1/bills/my-current`, `POST /api/v1/bills/submit`, `GET /api/v1/bills/student/{student_id}`.
-* **Frontend (React + TypeScript):**
-  - Built `StudentBillSummary.tsx` and integrated monthly billing status cards and submission workflows into `BillingPage.tsx`.
+### Module 3: Student Monthly Billing & Submission (Issue #42 - Part A)
+* **Backend Development (FastAPI):**
+  - Designed Pydantic models in `back-end/api/models/billing.py`: `BillStatusEnum` (`DRAFT`, `SUBMITTED`, `VERIFIED`, `APPROVED`, `REJECTED`), `BillItem`, `MonthlyBillResponse`, `BillSubmitPayload`.
+  - Developed `BillingService` in `back-end/api/services/billing_service.py` computing billable hours and financial amounts for `COMPLETED` duty tasks within the given month/year and handling draft submission (`DRAFT` → `SUBMITTED`).
+  - Implemented REST endpoints: `GET /api/v1/bills/my-current`, `POST /api/v1/bills/submit`, `GET /api/v1/bills/student/{student_id}`.
+* **Frontend Development (React + TypeScript):**
+  - Built `StudentBillSummary.tsx` and `BillingPage.tsx`: Integrated itemized duty receipts, monthly earnings summary cards, and student bill submission workflows.
+
+### System Debugging & Core Bug Fixes
+* **Tab Character & Control Character Sanitization Fix:** Fixed regex sanitization in `front-end/src/services/api.ts` from `[\x00-\x09...]` to `[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]`, preserving tab characters (`\t`) and newlines required for accurate IRAS table parsing.
+* **Authentication Dependency Export Fix:** Resolved `ImportError` by exporting `get_current_user` dependency in `back-end/api/services/auth_service.py`.
+* **Route Conflict Resolution:** Resolved route handler duplication between `tasks.py` and `swaps.py` to ensure clean REST dispatch.
+* **Windows Console Encoding Fix:** Resolved `UnicodeEncodeError` in backend unit test runner.
 
 ---
 
@@ -116,7 +123,7 @@ As a core developer on this project, my (**Momotaj Happy**) individual technical
 ## 4. Learning Reflection
 
 ### Technical Skills Gained
-* **Modern Web Development:** Mastered building RESTful microservices with **Python FastAPI**, leveraging **Pydantic** for rigorous data validation and **SQLAlchemy** for database operations.
+* **Modern Web Development:** Mastered building RESTful microservices with **Python FastAPI**, leveraging **Pydantic** for data validation and **SQLAlchemy** for ORM persistence.
 * **Frontend Architecture:** Deepened expertise in **React with TypeScript and Vite**, building modular UI components, custom hooks, and centralized state management.
 * **Security & Auth Standards:** Learned industry-standard security practices including password hashing (`bcrypt`), stateless JWT authentication, and Role-Based Access Control (RBAC).
 
