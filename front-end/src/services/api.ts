@@ -583,6 +583,141 @@ class ApiClient {
       ];
     }
   }
+
+  // Monthly Financial Billing API
+  async getCurrentBill(): Promise<any> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/bills/my-current`, {
+        method: 'GET',
+        headers: this.getHeaders()
+      });
+      if (!response.ok) throw new Error('Failed to fetch current bill');
+      return await response.json();
+    } catch (err: any) {
+      return {
+        bill_id: 'bill-mock-1',
+        student_id: 'mock-1',
+        student_name: 'Momotaj Happy',
+        month: 'July',
+        year: 2026,
+        total_hours: 3.0,
+        total_amount: 66.0,
+        status: 'SUBMITTED',
+        items: [
+          {
+            task_id: 'task-3',
+            title: 'Quantum Research Data Analysis',
+            date: '2026-07-26',
+            hours: 3.0,
+            hourly_rate: 22.0,
+            subtotal: 66.0
+          }
+        ],
+        notes: 'Submitted for faculty review.'
+      };
+    }
+  }
+
+  async submitBill(month: string, year: number, notes?: string): Promise<any> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/bills/submit`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ month, year, notes })
+      });
+      if (!response.ok) throw new Error('Failed to submit monthly bill');
+      return await response.json();
+    } catch (err: any) {
+      return {
+        bill_id: `bill-${Date.now()}`,
+        student_id: 'mock-1',
+        student_name: 'Momotaj Happy',
+        month,
+        year,
+        total_hours: 3.0,
+        total_amount: 66.0,
+        status: 'SUBMITTED',
+        notes
+      };
+    }
+  }
+
+  async getPendingBills(): Promise<any[]> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/bills/pending`, {
+        method: 'GET',
+        headers: this.getHeaders()
+      });
+      if (!response.ok) throw new Error('Failed to fetch pending bills');
+      return await response.json();
+    } catch (err: any) {
+      return [
+        {
+          bill_id: 'bill-mock-1',
+          student_id: 'mock-1',
+          student_name: 'Momotaj Happy',
+          month: 'July',
+          year: 2026,
+          total_hours: 3.0,
+          total_amount: 66.0,
+          status: 'SUBMITTED',
+          items: [
+            {
+              task_id: 'task-3',
+              title: 'Quantum Research Data Analysis',
+              date: '2026-07-26',
+              hours: 3.0,
+              hourly_rate: 22.0,
+              subtotal: 66.0
+            }
+          ],
+          notes: 'Submitted for faculty review.'
+        }
+      ];
+    }
+  }
+
+  async verifyBill(billId: string, notes?: string): Promise<any> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/bills/${billId}/verify`, {
+        method: 'PATCH',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ action: 'VERIFY', notes })
+      });
+      if (!response.ok) throw new Error('Failed to verify bill');
+      return await response.json();
+    } catch (err: any) {
+      return { bill_id: billId, status: 'VERIFIED', notes };
+    }
+  }
+
+  async approveBill(billId: string, notes?: string): Promise<any> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/bills/${billId}/approve`, {
+        method: 'PATCH',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ action: 'APPROVE', notes })
+      });
+      if (!response.ok) throw new Error('Failed to approve bill');
+      return await response.json();
+    } catch (err: any) {
+      return { bill_id: billId, status: 'APPROVED', notes };
+    }
+  }
+
+  async rejectBill(billId: string, notes?: string): Promise<any> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/bills/${billId}/reject`, {
+        method: 'PATCH',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ action: 'REJECT', notes })
+      });
+      if (!response.ok) throw new Error('Failed to reject bill');
+      return await response.json();
+    } catch (err: any) {
+      return { bill_id: billId, status: 'REJECTED', notes };
+    }
+  }
 }
 
 export const api = new ApiClient();
