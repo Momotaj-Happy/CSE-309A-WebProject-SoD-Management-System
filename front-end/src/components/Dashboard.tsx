@@ -4,6 +4,9 @@ import { api } from '../services/api';
 import type { DutyTask, ShiftSwap } from '../types/task';
 import { ShiftSwapFeed } from './ShiftSwapFeed';
 import { SwapAuditTable } from './SwapAuditTable';
+import { StudentBillSummary } from './StudentBillSummary';
+import { FacultyBillVerification } from './FacultyBillVerification';
+import { ManagerFinancialApproval } from './ManagerFinancialApproval';
 import {
   LayoutDashboard,
   Calendar,
@@ -270,6 +273,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToTab }) => {
         {/* Shift Swap Proxy Feed Component */}
         <ShiftSwapFeed onRefresh={loadDashboardData} />
       </div>
+
+      {/* Role-Based Billing & Approval Pipeline Components */}
+      {user?.role === 'STUDENT' && <StudentBillSummary />}
+      {user?.role === 'FACULTY' && <FacultyBillVerification />}
+      {(user?.role === 'DEPT_MGR' || user?.role === 'LAB_MGR') && (
+        <>
+          <FacultyBillVerification />
+          <ManagerFinancialApproval />
+        </>
+      )}
 
       {/* Swap Audit Trail Section */}
       <SwapAuditTable />
