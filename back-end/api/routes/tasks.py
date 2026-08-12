@@ -1,6 +1,6 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from api.models.task import DutyTaskCreate, DutyTaskResponse, TaskStatusUpdate, ShiftSwapRequest, ShiftSwapResponse
+from api.models.task import DutyTaskCreate, DutyTaskResponse, TaskStatusUpdate
 from api.services.task_service import TaskService
 from api.services.auth_service import get_current_token_payload
 
@@ -26,6 +26,30 @@ def create_task(
     return TaskService.create_task(task_in)
 
 
+@router.get("/{task_id}", response_model=DutyTaskResponse)
+def get_task(
+    task_id: str,
+    payload: dict = Depends(get_current_token_payload)
+):
+    """Fetches details for a single duty task."""
+    task = TaskService.get_task_by_id(task_id)
+    if not task:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+    return task
+
+
+@router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_task(
+    task_id: str,
+    payload: dict = Depends(get_current_token_payload)
+):
+    """Deletes or cancels an assigned duty task."""
+    success = TaskService.delete_task(task_id)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+    return None
+
+
 @router.patch("/{task_id}/status", response_model=DutyTaskResponse)
 def update_task_status(
     task_id: str,
@@ -37,35 +61,3 @@ def update_task_status(
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
     return updated
-
-
-@router.get("/swaps", response_model=List[ShiftSwapResponse])
-def list_swaps(payload: dict = Depends(get_current_token_payload)):
-    """Lists open shift swap requests."""
-    return TaskService.get_swaps()
-
-
-@router.post("/swaps", response_model=ShiftSwapResponse)
-def create_swap(
-    swap_in: ShiftSwapRequest,
-    payload: dict = Depends(get_current_token_payload)
-):
-    """Broadcasting a shift swap request for a duty task."""
-    user_id = payload.get("sub", "unknown")
-    swap = TaskService.create_swap(swap_in.task_id, user_id, "User", swap_in.reason)
-    if not swap:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
-    return swap
-
-
-@router.post("/swaps/{swap_id}/accept")
-def accept_swap(
-    swap_id: str,
-    payload: dict = Depends(get_current_token_payload)
-):
-    """Accepts an open shift swap request."""
-    accepting_user = payload.get("sub", "unknown")
-    success = TaskService.accept_swap(swap_id, accepting_user)
-    if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Swap request not found")
-    return {"message": "Shift swap accepted successfully"}

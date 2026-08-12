@@ -6,7 +6,7 @@ sys.path.append(str(Path(__file__).resolve().parent))
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.routes import auth, users, tasks
+from api.routes import auth, users, tasks, swaps, export, billing
 from api.routes.schedule import router as schedule_router
 
 app = FastAPI(
@@ -30,8 +30,13 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(users.router, prefix="/api/v1")
 app.include_router(tasks.router, prefix="/api/v1")
+app.include_router(swaps.router, prefix="/api/v1")
+app.include_router(billing.router, prefix="/api/v1")
+app.include_router(export.router, prefix="/api/v1")
+app.include_router(billing.router, prefix="/api/v1")
 app.include_router(schedule_router, prefix="/api/v1")
-app.include_router(schedule_router)  # Also include root schedule router for backward compatibility
+app.include_router(schedule_router, prefix="/api")
+app.include_router(schedule_router)
 
 
 @app.get("/", tags=["Health Check"])

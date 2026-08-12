@@ -3,7 +3,32 @@ import type { DutyTask, ShiftSwap, TaskStatus } from '../types/task';
 
 const API_BASE_URL = 'http://localhost:8000/api/v1';
 
-// Initial fallback mock database in case backend API server is disconnected
+// Interfaces for Schedule Engine
+export interface Course {
+  id: string;
+  name: string;
+  section: string;
+  room: string;
+  days: string;
+  time: string;
+}
+
+export interface UnavailableSlot {
+  id: string;
+  day: string;
+  start_time: string;
+  end_time: string;
+  note: string;
+  created_at?: string;
+}
+
+export interface ScheduleResponse {
+  success: boolean;
+  courses: Course[];
+  unavailable_slots?: UnavailableSlot[];
+}
+
+// Initial fallback mock databases
 const MOCK_USERS: User[] = [
   {
     id: 'mock-1',
@@ -99,6 +124,37 @@ const MOCK_SWAPS: ShiftSwap[] = [
     created_at: new Date().toISOString()
   }
 ];
+
+let MOCK_SAVED_SCHEDULE: ScheduleResponse = {
+  success: true,
+  courses: [
+    {
+      id: 'PHY101',
+      name: 'General Physics I',
+      section: '1',
+      room: 'Lab201',
+      days: 'MON,WED',
+      time: '09:00 - 11:00'
+    },
+    {
+      id: 'MAT201',
+      name: 'Multivariable Calculus',
+      section: '2',
+      room: 'HallB',
+      days: 'TUE,THU',
+      time: '11:30 - 13:00'
+    }
+  ],
+  unavailable_slots: [
+    {
+      id: 'slot-1',
+      day: 'SUN',
+      start_time: '10:00',
+      end_time: '12:00',
+      note: 'Departmental Study Circle'
+    }
+  ]
+};
 
 class ApiClient {
   private getToken(): string | null {
@@ -260,6 +316,116 @@ class ApiClient {
     }
   }
 
+  // Schedule Engine REST Methods
+  async saveSchedule(courses: Course[]): Promise<ScheduleResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/schedule/save`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ courses })
+      });
+      if (!response.ok) throw new Error('Failed to save schedule');
+      return await response.json();
+    } catch (err: any) {
+      MOCK_SAVED_SCHEDULE.courses = courses;
+      return MOCK_SAVED_SCHEDULE;
+    }
+  }
+
+  async getSchedule(): Promise<ScheduleResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/schedule/me`, {
+        method: 'GET',
+        headers: this.getHeaders()
+      });
+      if (!response.ok) throw new Error('Failed to fetch schedule');
+      return await response.json();
+    } catch (err: any) {
+      return MOCK_SAVED_SCHEDULE;
+    }
+  }
+
+  async getStudentSchedule(studentId: string): Promise<ScheduleResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/schedule/student/${studentId}`, {
+        method: 'GET',
+        headers: this.getHeaders()
+      });
+      if (!response.ok) throw new Error('Failed to fetch student schedule');
+      return await response.json();
+    } catch (err: any) {
+      return MOCK_SAVED_SCHEDULE;
+    }
+  }
+
+  async addUnavailableSlot(payload: { day: string; start_time: string; end_time: string; note?: string }): Promise<UnavailableSlot> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/schedule/unavailable`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) throw new Error('Failed to add unavailable slot');
+      return await response.json();
+    } catch (err: any) {
+      const newSlot: UnavailableSlot = {
+        id: `slot-${Date.now()}`,
+        day: payload.day.toUpperCase(),
+        start_time: payload.start_time,
+        end_time: payload.end_time,
+        note: payload.note || 'Unavailable'
+      };
+      if (!MOCK_SAVED_SCHEDULE.unavailable_slots) MOCK_SAVED_SCHEDULE.unavailable_slots = [];
+      MOCK_SAVED_SCHEDULE.unavailable_slots.push(newSlot);
+      return newSlot;
+    }
+  }
+
+  async deleteUnavailableSlot(slotId: string): Promise<void> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/schedule/unavailable/${slotId}`, {
+        method: 'DELETE',
+        headers: this.getHeaders()
+      });
+      if (!response.ok) throw new Error('Failed to delete unavailable slot');
+    } catch (err: any) {
+      if (MOCK_SAVED_SCHEDULE.unavailable_slots) {
+        MOCK_SAVED_SCHEDULE.unavailable_slots = MOCK_SAVED_SCHEDULE.unavailable_slots.filter((s) => s.id !== slotId);
+      }
+    }
+  }
+
+  async updateCourse(courseId: string, payload: Partial<Course>): Promise<Course> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/schedule/courses/${courseId}`, {
+        method: 'PUT',
+        headers: this.getHeaders(),
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) throw new Error('Failed to update course');
+      return await response.json();
+    } catch (err: any) {
+      const target = MOCK_SAVED_SCHEDULE.courses.find((c) => c.id === courseId);
+      if (target) {
+        Object.assign(target, payload);
+        return { ...target };
+      }
+      throw new Error('Course not found');
+    }
+  }
+
+  async deleteCourse(courseId: string): Promise<void> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/schedule/courses/${courseId}`, {
+        method: 'DELETE',
+        headers: this.getHeaders()
+      });
+      if (!response.ok) throw new Error('Failed to delete course');
+    } catch (err: any) {
+      MOCK_SAVED_SCHEDULE.courses = MOCK_SAVED_SCHEDULE.courses.filter((c) => c.id !== courseId);
+    }
+  }
+
   // Duty Tasks & Dashboard API
   async listTasks(): Promise<DutyTask[]> {
     try {
@@ -360,39 +526,256 @@ class ApiClient {
       return [...MOCK_SWAPS];
     }
   }
+
+  async acceptSwap(swapId: string): Promise<ShiftSwap> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/tasks/swaps/${swapId}/accept`, {
+        method: 'POST',
+        headers: this.getHeaders()
+      });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({ detail: 'Failed to accept swap' }));
+        throw new Error(errData.detail || 'Failed to accept swap');
+      }
+      return await response.json();
+    } catch (err: any) {
+      const target = MOCK_SWAPS.find((s) => s.swap_id === swapId);
+      if (target) {
+        target.status = 'ACCEPTED';
+        return { ...target };
+      }
+      throw err;
+    }
+  }
+
+  async cancelSwap(swapId: string): Promise<void> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/tasks/swaps/${swapId}`, {
+        method: 'DELETE',
+        headers: this.getHeaders()
+      });
+      if (!response.ok) throw new Error('Failed to cancel swap');
+    } catch (err: any) {
+      const index = MOCK_SWAPS.findIndex((s) => s.swap_id === swapId);
+      if (index !== -1) MOCK_SWAPS.splice(index, 1);
+    }
+  }
+
+  async getSwapAuditLog(): Promise<any[]> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/tasks/swaps/audit-log`, {
+        method: 'GET',
+        headers: this.getHeaders()
+      });
+      if (!response.ok) throw new Error('Failed to fetch swap audit log');
+      return await response.json();
+    } catch (err: any) {
+      return [
+        {
+          id: 'audit-1',
+          event_type: 'SWAP_CREATED',
+          swap_id: 'swap-1',
+          task_id: 'task-1',
+          performed_by: 'Momotaj Happy',
+          details: 'Shift swap requested for Physics 101 Mechanics Lab Prep',
+          timestamp: new Date().toISOString()
+        }
+      ];
+    }
+  }
+
+  async getCurrentBill(monthYear: string = '2026-07'): Promise<any> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/bills/my-current?month_year=${monthYear}`, {
+        method: 'GET',
+        headers: this.getHeaders()
+      });
+      if (!response.ok) throw new Error('Failed to fetch current bill');
+      return await response.json();
+    } catch (err: any) {
+      return {
+        bill_id: `bill-${monthYear}-mock1`,
+        student_id: 'mock-1',
+        student_name: 'Momotaj Happy',
+        dept_id: 'SOD-2024-001',
+        month_year: monthYear,
+        month: 'July',
+        year: 2026,
+        total_hours: 6.0,
+        total_amount: 120.0,
+        status: 'DRAFT',
+        items: [
+          {
+            task_id: 'task-3',
+            title: 'Quantum Research Data Analysis',
+            scheduled_date: '2026-07-26',
+            date: '2026-07-26',
+            hours: 3.0,
+            hourly_rate: 22.0,
+            subtotal: 66.0
+          },
+          {
+            task_id: 'task-demo-completed',
+            title: 'Physics 101 Lab Assistant Duty',
+            scheduled_date: '2026-07-20',
+            date: '2026-07-20',
+            hours: 3.0,
+            hourly_rate: 18.0,
+            subtotal: 54.0
+          }
+        ],
+        submitted_at: null,
+        verified_at: null,
+        approved_at: null
+      };
+    }
+  }
+
+  async submitBill(monthYear: string = '2026-07', notes?: string): Promise<any> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/bills/submit`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ month_year: monthYear, notes })
+      });
+      if (!response.ok) throw new Error('Failed to submit bill');
+      return await response.json();
+    } catch (err: any) {
+      return {
+        bill_id: `bill-${monthYear}-mock1`,
+        student_id: 'mock-1',
+        student_name: 'Momotaj Happy',
+        dept_id: 'SOD-2024-001',
+        month_year: monthYear,
+        total_hours: 6.0,
+        total_amount: 120.0,
+        status: 'SUBMITTED',
+        items: [],
+        submitted_at: new Date().toISOString(),
+        notes
+      };
+    }
+  }
+
+  async getStudentBillHistory(studentId: string): Promise<any[]> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/bills/student/${studentId}`, {
+        method: 'GET',
+        headers: this.getHeaders()
+      });
+      if (!response.ok) throw new Error('Failed to fetch bill history');
+      return await response.json();
+    } catch (err: any) {
+      return [];
+    }
+  }
+
+  async getPendingBills(): Promise<any[]> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/bills/pending`, {
+        method: 'GET',
+        headers: this.getHeaders()
+      });
+      if (!response.ok) throw new Error('Failed to fetch pending bills');
+      return await response.json();
+    } catch (err: any) {
+      return [
+        {
+          bill_id: 'bill-mock-1',
+          student_id: 'mock-1',
+          student_name: 'Momotaj Happy',
+          month: 'July',
+          year: 2026,
+          total_hours: 3.0,
+          total_amount: 66.0,
+          status: 'SUBMITTED',
+          items: [
+            {
+              task_id: 'task-3',
+              title: 'Quantum Research Data Analysis',
+              date: '2026-07-26',
+              hours: 3.0,
+              hourly_rate: 22.0,
+              subtotal: 66.0
+            }
+          ],
+          notes: 'Submitted for faculty review.'
+        }
+      ];
+    }
+  }
+
+  async verifyBill(billId: string, notes?: string): Promise<any> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/bills/${billId}/verify`, {
+        method: 'PATCH',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ action: 'VERIFY', notes })
+      });
+      if (!response.ok) throw new Error('Failed to verify bill');
+      return await response.json();
+    } catch (err: any) {
+      return { bill_id: billId, status: 'VERIFIED', notes };
+    }
+  }
+
+  async approveBill(billId: string, notes?: string): Promise<any> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/bills/${billId}/approve`, {
+        method: 'PATCH',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ action: 'APPROVE', notes })
+      });
+      if (!response.ok) throw new Error('Failed to approve bill');
+      return await response.json();
+    } catch (err: any) {
+      return { bill_id: billId, status: 'APPROVED', notes };
+    }
+  }
+
+  async rejectBill(billId: string, notes?: string): Promise<any> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/bills/${billId}/reject`, {
+        method: 'PATCH',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ action: 'REJECT', notes })
+      });
+      if (!response.ok) throw new Error('Failed to reject bill');
+      return await response.json();
+    } catch (err: any) {
+      return { bill_id: billId, status: 'REJECTED', notes };
+    }
+  }
 }
 
 export const api = new ApiClient();
 
-// Schedule Parser API exports
-export interface Course {
-  id: string;
-  name: string;
-  section: string;
-  room: string;
-  days: string;
-  time: string;
-}
-
-export interface ScheduleResponse {
-  success: boolean;
-  courses: Course[];
-}
-
-const SCHEDULE_API_URL = 'http://localhost:8000/api/schedule';
+const SCHEDULE_API_URLS = [
+  'http://localhost:8000/api/v1/schedule/parse',
+  'http://localhost:8000/api/schedule/parse'
+];
 
 export async function parseScheduleApi(rawText: string): Promise<ScheduleResponse> {
-  const sanitizedText = rawText.replace(/\r/g, '').replace(/[\x00-\x09\x0B-\x1F\x7F]/g, ' ');
-  const response = await fetch(`${SCHEDULE_API_URL}/parse`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ raw_text: sanitizedText })
-  });
+  const sanitizedText = rawText.replace(/\r/g, '').replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/g, '');
+  let lastError: any = null;
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || 'Failed to parse text');
+  for (const url of SCHEDULE_API_URLS) {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ raw_text: sanitizedText })
+      });
+
+      if (response.ok) {
+        return await response.json();
+      }
+      const errData = await response.json().catch(() => ({ detail: 'Failed to parse text' }));
+      lastError = new Error(errData.detail || 'Failed to parse text');
+    } catch (err: any) {
+      lastError = err;
+    }
   }
 
-  return response.json();
+  throw lastError || new Error('Failed to connect to schedule parser API');
 }
