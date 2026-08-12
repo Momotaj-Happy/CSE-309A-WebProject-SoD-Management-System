@@ -8,6 +8,7 @@ import { FacultyTaskAssignment } from './components/FacultyTaskAssignment';
 import { UserDirectory } from './components/UserDirectory';
 import { UserProfileCard } from './components/UserProfileCard';
 import { SchedulePage } from './pages/SchedulePage';
+import { BillingPage } from './pages/BillingPage';
 
 const MainApp: React.FC = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -52,6 +53,7 @@ const MainApp: React.FC = () => {
         ) : (
           <>
             {activeTab === 'student-duties' && <StudentDuties />}
+            {activeTab === 'billing' && <BillingPage onBack={() => setActiveTab('student-duties')} />}
             {activeTab === 'faculty-tasks' && <FacultyTaskAssignment />}
             {activeTab === 'directory' && <UserDirectory />}
             {activeTab === 'schedule' && (
